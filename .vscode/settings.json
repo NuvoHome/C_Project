@@ -1,0 +1,15 @@
+{
+    "terminal.integrated.env.linux": {
+        "PATH": "/home/aldrin/.platformio/penv/bin:/home/aldrin/.platformio/penv:/usr/local/cuda-9.2/bin:/home/aldrin/anaconda3/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin:/usr/games:/usr/local/games:/snap/bin",
+        "PLATFORMIO_CALLER": "vscode"
+    },
+    "files.associations": {
+        "rdkafka.h": "c",
+        "signal.h": "c",
+        "time.h": "c",
+        "string.h": "c",
+        "freertos.h": "c"
+    },
+    "C_Cpp.intelliSenseEngineFallback": "Disabled",
+    "C_Cpp.dimInactiveRegions": false
+}
