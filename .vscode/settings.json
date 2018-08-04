@@ -8,7 +8,9 @@
         "signal.h": "c",
         "time.h": "c",
         "string.h": "c",
-        "freertos.h": "c"
+        "freertos.h": "c",
+        "ota_update.h": "c",
+        "*.tcc": "c"
     },
     "C_Cpp.intelliSenseEngineFallback": "Disabled",
     "C_Cpp.dimInactiveRegions": false
