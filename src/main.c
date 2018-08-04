@@ -11,12 +11,12 @@
 #define TASK_STACK_DEPTH 2048
 #define SPI_BUS       HSPI_HOST
 #define SPI_SCK_GPIO 22
-#define SPI_MOSI_GPIO 5
+#define SPI_MOSI_GPIO 2
 #define SPI_MISO_GPIO 23
-#define SPI_CS_GPIO 2
+#define SPI_CS_GPIO 15
 
-#define SDA_PIN 18
-#define SCL_PIN 19
+#define SDA_PIN 19
+#define SCL_PIN 18
 //set i2c addresses to connect to 
 // #define MAX44009_ADDRESS1 0x4A
 // #define MAX44009_ADDRESS2 0x4B
@@ -113,8 +113,8 @@ void app_main()
     
     // #else  // I2C
 
-    // // Init all I2C bus interfaces at which BME680 sensors are connected
-    // i2c_init(I2C_BUS, I2C_SCL_PIN, I2C_SDA_PIN, I2C_FREQ);
+    // Init all I2C bus interfaces at which BME680 sensors are connected
+    // i2c_init(I2C_BUS, SCL_PIN, SDA_PIN, I2C_FREQ);
 
     // // init the sensor with slave address BME680_I2C_ADDRESS_2 connected to I2C_BUS.
     // sensor = bme680_init_sensor (I2C_BUS, BME680_I2C_ADDRESS_2, 0);
