@@ -10,7 +10,9 @@
         "string.h": "c",
         "freertos.h": "c",
         "ota_update.h": "c",
-        "*.tcc": "c"
+        "*.tcc": "c",
+        "i2s.h": "c",
+        "i2c.h": "c"
     },
     "C_Cpp.intelliSenseEngineFallback": "Disabled",
     "C_Cpp.dimInactiveRegions": false
