@@ -15,11 +15,14 @@
 #define SPI_MISO_GPIO 23
 #define SPI_CS_GPIO 15
 
-#define SDA_PIN 19
-#define SCL_PIN 18
+#define SDA_PIN 21
+#define SCL_PIN 22
 //set i2c addresses to connect to 
 // #define MAX44009_ADDRESS1 0x4A
 // #define MAX44009_ADDRESS2 0x4B
+#define I2C_BUS       0
+
+#define I2C_FREQ I2C_FREQ_100K
 
 #define I2C_MASTER_ACK 0
 #define I2C_MASTER_NACK 1
@@ -68,7 +71,7 @@ void i2c_master_init()
 		.scl_io_num = SCL_PIN,
 		.sda_pullup_en = GPIO_PULLUP_ENABLE,
 		.scl_pullup_en = GPIO_PULLUP_ENABLE,
-		.master.clk_speed = 400000
+		.master.clk_speed = 4000000
 	};
 	i2c_param_config(I2C_NUM_0, &i2c_config);
 	i2c_driver_install(I2C_NUM_0, I2C_MODE_MASTER, 0, 0, 0);
@@ -106,18 +109,18 @@ void app_main()
 
     // #ifdef SPI_USED
 
-    spi_bus_init (SPI_BUS, SPI_SCK_GPIO, SPI_MISO_GPIO, SPI_MOSI_GPIO);
+    // spi_bus_init (SPI_BUS, SPI_SCK_GPIO, SPI_MISO_GPIO, SPI_MOSI_GPIO);
 
-    // init the sensor connected to SPI_BUS with SPI_CS_GPIO as chip select.
-    sensor = bme680_init_sensor (SPI_BUS, 0, SPI_CS_GPIO);
+    // // init the sensor connected to SPI_BUS with SPI_CS_GPIO as chip select.
+    // sensor = bme680_init_sensor (SPI_BUS, 0, SPI_CS_GPIO);
     
     // #else  // I2C
 
     // Init all I2C bus interfaces at which BME680 sensors are connected
-    // i2c_init(I2C_BUS, SCL_PIN, SDA_PIN, I2C_FREQ);
+    i2c_init(I2C_BUS, SCL_PIN, SDA_PIN, I2C_FREQ);
 
-    // // init the sensor with slave address BME680_I2C_ADDRESS_2 connected to I2C_BUS.
-    // sensor = bme680_init_sensor (I2C_BUS, BME680_I2C_ADDRESS_2, 0);
+    // init the sensor with slave address BME680_I2C_ADDRESS_2 connected to I2C_BUS.
+    sensor = bme680_init_sensor (I2C_BUS, BME680_I2C_ADDRESS_2, 0);
 
     // #endif  // SPI_USED
 
