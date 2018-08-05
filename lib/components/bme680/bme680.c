@@ -252,7 +252,7 @@ typedef struct {
 /** Forward declaration of functions for internal use */
 
 static bool     bme680_set_mode (bme680_sensor_t* dev, uint8_t mode);
-static bool     bme680_get_raw_data (bme680_sensor_t* dev, bme680_raw_data_t* raw);
+static bool     resraw_data (bme680_sensor_t* dev, bme680_raw_data_t* raw);
 static int16_t  bme680_convert_temperature (bme680_sensor_t *dev, uint32_t raw_temperature);
 static uint32_t bme680_convert_pressure (bme680_sensor_t *dev, uint32_t raw_pressure);
 static uint32_t bme680_convert_humidity (bme680_sensor_t *dev, uint16_t raw_humidity);
