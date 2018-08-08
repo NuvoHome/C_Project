@@ -12,7 +12,8 @@
         "ota_update.h": "c",
         "*.tcc": "c",
         "i2s.h": "c",
-        "i2c.h": "c"
+        "i2c.h": "c",
+        "mqtt_client.h": "c"
     },
     "C_Cpp.intelliSenseEngineFallback": "Disabled",
     "C_Cpp.dimInactiveRegions": false
