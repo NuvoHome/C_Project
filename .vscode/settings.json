@@ -17,5 +17,9 @@
         "http_parser.h": "c"
     },
     "C_Cpp.intelliSenseEngineFallback": "Disabled",
-    "C_Cpp.dimInactiveRegions": false
+    "C_Cpp.dimInactiveRegions": false,
+    "terminal.integrated.env.osx": {
+        "PATH": "/Users/auggieclement/.platformio/penv/bin:/Users/auggieclement/.platformio/penv:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/Cellar/postgresql/10.4/bin",
+        "PLATFORMIO_CALLER": "vscode"
+    }
 }
