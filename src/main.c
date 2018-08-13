@@ -12,7 +12,13 @@
 #include <math.h>
 #include "mqtt_client.h"
 #include "esp_log.h"
+#include "freertos/semphr.h"
+#include "freertos/queue.h"
+#include "freertos/event_groups.h"
 
+#include "lwip/sockets.h"
+#include "lwip/dns.h"
+#include "lwip/netdb.h"
 #define TASK_STACK_DEPTH 2048
 #define SPI_BUS       HSPI_HOST
 #define SPI_SCK_GPIO 22
@@ -201,15 +207,35 @@ static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event)
     }
     return ESP_OK;
 }
-const esp_mqtt_client_config_t mqtt_cfg = {
-    .uri = "mqtt://iot.eclipse.org",
-    .event_handle = mqtt_event_handler,
-    // .user_context = (void *)your_context
-};
+static void mqtt_app_start(void)
+{
+    const esp_mqtt_client_config_t mqtt_cfg = {
+        .uri = "mqtt://iot.eclipse.org",
+        .event_handle = mqtt_event_handler,
+        // .user_context = (void *)your_context
+    };
+
+    esp_mqtt_client_handle_t client = esp_mqtt_client_init(&mqtt_cfg);
+    esp_mqtt_client_start(client);
+}
 void app_main()
 {
+    
+    ESP_LOGI(TAG, "[APP] Startup..");
+    ESP_LOGI(TAG, "[APP] Free memory: %d bytes", esp_get_free_heap_size());
+    ESP_LOGI(TAG, "[APP] IDF version: %s", esp_get_idf_version());
+
+    esp_log_level_set("*", ESP_LOG_INFO);
+    esp_log_level_set("MQTT_CLIENT", ESP_LOG_VERBOSE);
+    esp_log_level_set("TRANSPORT_TCP", ESP_LOG_VERBOSE);
+    esp_log_level_set("TRANSPORT_SSL", ESP_LOG_VERBOSE);
+    esp_log_level_set("TRANSPORT", ESP_LOG_VERBOSE);
+    esp_log_level_set("OUTBOX", ESP_LOG_VERBOSE);
     nvs_flash_init();
     initialise_wifi();
+    //  mqtt_app_start();
+        // ESP_LOGI(TAG, "Flash encryption %d", esp_flash_encryption_enabled());
+esp_flash_encryption_enabled();
     uart_set_baud(0, 115200);
     // Give the UART some time to settle
     vTaskDelay(1);
