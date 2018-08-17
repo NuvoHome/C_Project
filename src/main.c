@@ -15,7 +15,7 @@
 #include "freertos/semphr.h"
 #include "freertos/queue.h"
 #include "freertos/event_groups.h"
-
+#include <lwmqtt/unix.h>
 #include "lwip/sockets.h"
 #include "lwip/dns.h"
 #include "lwip/netdb.h"
@@ -230,7 +230,7 @@ void app_main()
     initialise_wifi();
     //  mqtt_app_start();
         // ESP_LOGI(TAG, "Flash encryption %d", esp_flash_encryption_enabled());
-esp_flash_encryption_enabled();
+// esp_flash_encryption_enabled();
     uart_set_baud(0, 115200);
     // Give the UART some time to settle
     vTaskDelay(1);
