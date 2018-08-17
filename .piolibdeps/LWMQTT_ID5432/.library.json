@@ -1,0 +1,61 @@
+{
+    "name": "LWMQTT", 
+    "repository": {
+        "url": "https://github.com/256dpi/lwmqtt.git", 
+        "type": "git"
+    }, 
+    "platforms": [
+        "atmelavr", 
+        "atmelsam", 
+        "espressif32", 
+        "espressif8266", 
+        "freescalekinetis", 
+        "intel_arc32", 
+        "linux_arm", 
+        "maxim32", 
+        "microchippic32", 
+        "nordicnrf51", 
+        "nordicnrf52", 
+        "nxplpc", 
+        "samsung_artik", 
+        "siliconlabsefm32", 
+        "ststm32", 
+        "teensy", 
+        "timsp430", 
+        "titiva", 
+        "wiznet7500"
+    ], 
+    "frameworks": [
+        "arduino", 
+        "artik-sdk", 
+        "cmsis", 
+        "energia", 
+        "esp8266-nonos-sdk", 
+        "esp8266-rtos-sdk", 
+        "espidf", 
+        "freedom-e-sdk", 
+        "libopencm3", 
+        "mbed", 
+        "pumbaa", 
+        "simba", 
+        "spl", 
+        "stm32cube", 
+        "tizenrt", 
+        "wiringpi"
+    ], 
+    "version": "0.6.1", 
+    "authors": [
+        {
+            "maintainer": false, 
+            "name": "Jo\u00ebl G\u00e4hwiler", 
+            "url": "https://github.com/256dpi", 
+            "email": "joel.gaehwiler@gmail.com"
+        }
+    ], 
+    "keywords": [
+        "mqtt", 
+        "iot"
+    ], 
+    "id": 5432, 
+    "description": "The Light Weight MQTT library implements a MQTT 3.1.1 client that is optimized to be used in embedded and constraint systems. It can be used with any operating system and network stack and only requires a handful of callbacks for a full integration."
+}
