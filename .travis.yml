@@ -14,3 +14,5 @@ install:
 
 
 script:
+    - echo "Run desktop (native) tests on Travis.CI Linux machine"
+    - platformio run -e native
