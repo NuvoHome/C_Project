@@ -30,12 +30,7 @@
 #ifdef CONFIG_ESP_HTTP_CLIENT_ENABLE_HTTPS
 #include "transport_ssl.h"
 #endif
-
-static const char *TAG = "HTTP_CLIENT";
-
-/**
- * HTTP Buffer
- */
+d
 typedef struct {
     char *data;         /*!< The HTTP data received from the server */
     int len;            /*!< The HTTP data len received from the server */
