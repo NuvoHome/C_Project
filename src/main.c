@@ -53,6 +53,7 @@ static void initialise_wifi(void)
     ESP_ERROR_CHECK( esp_wifi_start() );
     ESP_ERROR_CHECK( esp_wifi_connect() );
 }
+//I2C init--WORKING
 void i2c_master_init()
 {
 	i2c_config_t i2c_config = {
@@ -66,6 +67,7 @@ void i2c_master_init()
 	i2c_param_config(I2C_NUM_0, &i2c_config);
 	i2c_driver_install(I2C_NUM_0, I2C_MODE_MASTER, 0, 0, 0);
 }
+//I2S init--TESTING
 void i2s_init(){
         i2s_config_t i2s_config = {
         .mode = I2S_MODE_MASTER | I2S_MODE_TX | I2S_MODE_DAC_BUILT_IN,                                  // Only TX
@@ -91,7 +93,8 @@ static esp_err_t event_handler(void *ctx, system_event_t *event)
 {
    return ESP_OK;
 }
-void user_task(void *pvParameters)
+//BME680 Sensor--WORKING
+void bme680_test(void *pvParameters)
 {
     bme680_values_float_t values;
 
@@ -208,8 +211,8 @@ void app_main()
     nvs_flash_init();
     initialise_wifi();
     //  mqtt_app_start();
-        // ESP_LOGI(TAG, "Flash encryption %d", esp_flash_encryption_enabled());
-// esp_flash_encryption_enabled();
+    // ESP_LOGI(TAG, "Flash encryption %d", esp_flash_encryption_enabled());
+    // esp_flash_encryption_enabled();
     uart_set_baud(0, 115200);
     // Give the UART some time to settle
     vTaskDelay(1);
@@ -218,13 +221,7 @@ void app_main()
     i2c_init(I2C_BUS, SCL_PIN, SDA_PIN, I2C_FREQ);
     // init the sensor with slave address BME680_I2C_ADDRESS_2 connected to I2C_BUS.
     sensor = bme680_init_sensor (I2C_BUS, BME680_I2C_ADDRESS_2, 0);
-    // #endif  // SPI_USED
-    //for 36Khz sample rates, we create 100Hz sine wave, every cycle need 36000/100 = 360 samples (4-bytes or 8-bytes each sample)
-    //depend on bits_per_sample
-    //using 6 buffers, we need 60-samples per buffer
-    //if 2-channels, 16-bit each channel, total buffer is 360*4 = 1440 bytes
-    //if 2-channels, 24/32-bit each channel, total buffer is 360*8 = 2880 bytes
-
+//Microphone Sensor testing
     int dest, test1;
     while(1){
     test1 = i2s_read(I2S_NUM,&dest, 32, 0, 1);
@@ -235,6 +232,7 @@ void app_main()
         test1 >>= 14;
     printf("DATA: "+test1);
     }
+//BME SENSOR WORKING
  if (sensor)
     {
         /** -- SENSOR CONFIGURATION PART (optional) --- */
@@ -259,31 +257,30 @@ void app_main()
         // configuration part
 
         // Create a task that uses the sensor
-        xTaskCreate(user_task, "user_task", TASK_STACK_DEPTH, NULL, 2, NULL);
+        xTaskCreate(bme680_test, "bme680_test", TASK_STACK_DEPTH, NULL, 2, NULL);
     }
     else{
         printf("Could not initialize BME680 sensor\n");
     }
     
-
-    while (1){
-      int r, ret;
-      i2c_cmd_handle_t cmd = i2c_cmd_link_create();
-    i2c_master_start(cmd);
-        // i2c_master_write_byte(cmd, TCS34725_ENABLE << 1 | TCS34725_ENABLE_PON, ACK_CHECK_EN);
-    i2c_master_write_byte(cmd, TCS34725_ENABLE << 1 | TCS34725_ENABLE_PON | TCS34725_ENABLE_AIEN , ACK_CHECK_EN);
-    i2c_master_write_byte(cmd, TCS34725_COMMAND_BIT, ACK_CHECK_EN);
-    // i2c_master_stop(cmd);
-    ret = i2c_master_cmd_begin(I2C_EXAMPLE_MASTER_NUM, cmd, 1000 / portTICK_RATE_MS);
-    // i2c_cmd_link_delete(cmd);
+//TCS sensor--TESTING 
+while (1){
+int r, ret;
+i2c_cmd_handle_t cmd = i2c_cmd_link_create();
+i2c_master_start(cmd);
+// i2c_master_write_byte(cmd, TCS34725_ENABLE << 1 | TCS34725_ENABLE_PON, ACK_CHECK_EN);
+i2c_master_write_byte(cmd, TCS34725_ENABLE << 1 | TCS34725_ENABLE_PON | TCS34725_ENABLE_AIEN , ACK_CHECK_EN);
+i2c_master_write_byte(cmd, TCS34725_COMMAND_BIT, ACK_CHECK_EN);
+// i2c_master_stop(cmd);
+// ret = i2c_master_cmd_begin(I2C_EXAMPLE_MASTER_NUM, cmd, 1000 / portTICK_RATE_MS);
+// i2c_cmd_link_delete(cmd);
 //    cmd = i2c_cmd_link_create();
 //   i2c_master_start(cmd);
-  i2c_master_write_byte(cmd, (TCS34725_RDATAH << 1) | TCS34725_COMMAND_BIT, ACK_CHECK_EN);
-  i2c_master_read_byte(cmd, &r , ACK_VAL);   
-  ret = i2c_master_cmd_begin(TCS34725_ADDRESS, cmd, 1000 / portTICK_RATE_MS);
-    i2c_master_stop(cmd);
-
-  i2c_cmd_link_delete(cmd);
+i2c_master_write_byte(cmd, (TCS34725_RDATAH << 1) | TCS34725_COMMAND_BIT, ACK_CHECK_EN);
+i2c_master_read_byte(cmd, &r , ACK_VAL);   
+ret = i2c_master_cmd_begin(TCS34725_ADDRESS, cmd, 1000 / portTICK_RATE_MS);
+i2c_master_stop(cmd);
+i2c_cmd_link_delete(cmd);
 //    return ret;
 printf("%d",ret);
   }
