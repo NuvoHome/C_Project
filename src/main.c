@@ -7,8 +7,8 @@
 #include "esp_event_loop.h"
 #include "nvs_flash.h"
 #include "bme680/bme680.h"
-#include "i2c.h"
-#include "i2s.h"
+#include "driver/i2c.h"
+#include "driver/i2s.h"
 #include <math.h>
 // #include "mqtt_client.h"
 #include "esp_log.h"
@@ -19,6 +19,7 @@
 #include "lwip/sockets.h"
 #include "lwip/dns.h"
 #include "lwip/netdb.h"
+#include "TCS34725.h"
 #define MQTT_TOPIC "/topic/data"
 #define TASK_STACK_DEPTH 2048
 #define SPI_BUS       HSPI_HOST
@@ -26,7 +27,6 @@
 #define SPI_MOSI_GPIO 2
 #define SPI_MISO_GPIO 23
 #define SPI_CS_GPIO 15
-
 #define SDA_PIN 21
 #define SCL_PIN 22
 //set i2c addresses to connect to 
@@ -38,63 +38,10 @@
 
 #define I2C_MASTER_ACK 0
 #define I2C_MASTER_NACK 1
-#define SSID             "Home"
-#define PASSWORD         "Casabl12"
 #define SAMPLE_RATE     (36000)
 #define I2S_NUM         (0)
-#define WAVE_FREQ_HZ    (100)
-#define PI 3.14159265
 static const char *TAG = "MQTT_SAMPLE";
-#define SAMPLE_PER_CYCLE (SAMPLE_RATE/WAVE_FREQ_HZ)
-static void setup_triangle_sine_waves(int bits)
-{
-    int *samples_data = malloc(((bits+8)/16)*SAMPLE_PER_CYCLE*4);
-    unsigned int i, sample_val;
-    double sin_float, triangle_float, triangle_step = (double) pow(2, bits) / SAMPLE_PER_CYCLE;
-    size_t i2s_bytes_write = 0;
 
-    printf("\r\nTest bits=%d free mem=%d, written data=%d\n", bits, esp_get_free_heap_size(), ((bits+8)/16)*SAMPLE_PER_CYCLE*4);
-
-    triangle_float = -(pow(2, bits)/2 - 1);
-
-    for(i = 0; i < SAMPLE_PER_CYCLE; i++) {
-        sin_float = sin(i * PI / 180.0);
-        if(sin_float >= 0)
-            triangle_float += triangle_step;
-        else
-            triangle_float -= triangle_step;
-
-        sin_float *= (pow(2, bits)/2 - 1);
-
-        if (bits == 16) {
-            sample_val = 0;
-            sample_val += (short)triangle_float;
-            sample_val = sample_val << 16;
-            sample_val += (short) sin_float;
-            samples_data[i] = sample_val;
-        } else if (bits == 24) { //1-bytes unused
-            samples_data[i*2] = ((int) triangle_float) << 8;
-            samples_data[i*2 + 1] = ((int) sin_float) << 8;
-        } else {
-            samples_data[i*2] = ((int) triangle_float);
-            samples_data[i*2 + 1] = ((int) sin_float);
-        }
-
-    }
-
-    i2s_set_clk(I2S_NUM, SAMPLE_RATE, bits, 2);
-    //Using push
-    // for(i = 0; i < SAMPLE_PER_CYCLE; i++) {
-    //     if (bits == 16)
-    //         i2s_push_sample(0, &samples_data[i], 100);
-    //     else
-    //         i2s_push_sample(0, &samples_data[i*2], 100);
-    // }
-    // or write
-    i2s_write(I2S_NUM, samples_data, ((bits+8)/16)*SAMPLE_PER_CYCLE*4, &i2s_bytes_write, 100);
-
-    free(samples_data);
-}
 static bme680_sensor_t* sensor = 0;
 
 void user_task(void *pvParameters)
@@ -213,6 +160,23 @@ static void initialise_wifi(void)
 //     esp_mqtt_client_handle_t client = esp_mqtt_client_init(&mqtt_cfg);
 //     esp_mqtt_client_start(client);
 // }
+static esp_err_t i2c_master_read_slave(i2c_port_t i2c_num, uint8_t *data_rd, size_t size)
+{
+    if (size == 0) {
+        return ESP_OK;
+    }
+    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
+    i2c_master_start(cmd);
+    i2c_master_write_byte(cmd, (TCS34725_ADDRESS << 1) | READ_BIT, ACK_CHECK_EN);
+    if (size > 1) {
+        i2c_master_read(cmd, data_rd, size - 1, ACK_VAL);
+    }
+    i2c_master_read_byte(cmd, data_rd + size - 1, NACK_VAL);
+    i2c_master_stop(cmd);
+    esp_err_t ret = i2c_master_cmd_begin(i2c_num, cmd, 1000 / portTICK_RATE_MS);
+    i2c_cmd_link_delete(cmd);
+    return ret;
+}
 void app_main()
 {
     
@@ -275,16 +239,11 @@ void app_main()
     };
     i2s_driver_install(I2S_NUM, &i2s_config, 0, NULL);
     i2s_set_pin(I2S_NUM, &pin_config);
-
-    int test_bits = 16;
-    while (1) {
-        setup_triangle_sine_waves(test_bits);
-        vTaskDelay(5000/portTICK_RATE_MS);
-        test_bits += 8;
-        if(test_bits > 32)
-            test_bits = 16;
-
-    
+    int dest, try;
+    while(1){
+    try = i2s_read(I2S_NUM,&dest, 32, 0, 1);
+    printf(try);
+    }
 
  if (sensor)
     {
@@ -312,9 +271,33 @@ void app_main()
         // Create a task that uses the sensor
         xTaskCreate(user_task, "user_task", TASK_STACK_DEPTH, NULL, 2, NULL);
     }
-    else
+    else{
         printf("Could not initialize BME680 sensor\n");
     }
+    
+
+    while (1){
+      int r, ret;
+      i2c_cmd_handle_t cmd = i2c_cmd_link_create();
+    i2c_master_start(cmd);
+    i2c_master_cmd_begin(TCS34725_ADDRESS,cmd,1000 / portTICK_RATE_MS);
+    // i2c_master_write_byte(cmd, TCS34725_ENABLE << 1 | TCS34725_ENABLE_PON, ACK_CHECK_EN);
+    i2c_master_write_byte(cmd, TCS34725_ENABLE << 1 | TCS34725_ENABLE_PON | TCS34725_ENABLE_AIEN , ACK_CHECK_EN);
+    i2c_master_write_byte(cmd, TCS34725_COMMAND_BIT, ACK_CHECK_EN);
+    // i2c_master_stop(cmd);
+    ret = i2c_master_cmd_begin(I2C_EXAMPLE_MASTER_NUM, cmd, 1000 / portTICK_RATE_MS);
+    // i2c_cmd_link_delete(cmd);
+//    cmd = i2c_cmd_link_create();
+//   i2c_master_start(cmd);
+  i2c_master_write_byte(cmd, (TCS34725_RDATAH << 1) | TCS34725_COMMAND_BIT, ACK_CHECK_EN);
+  i2c_master_read_byte(cmd, &r , ACK_VAL);   
+  ret = i2c_master_cmd_begin(TCS34725_ADDRESS, cmd, 1000 / portTICK_RATE_MS);
+    i2c_master_stop(cmd);
+
+  i2c_cmd_link_delete(cmd);
+//    return ret;
+printf("%d",ret);
+  }
 }
 
 // /* OTA example
