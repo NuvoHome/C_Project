@@ -228,9 +228,13 @@ void app_main()
     int dest, test1;
     while(1){
     test1 = i2s_read(I2S_NUM,&dest, 32, 0, 1);
-    printf("DATA:"+test1);
+    if((test1 == 0) || (test1 == -1)){
+    printf(0);
     }
-
+    else {
+        test1 >>= 14;
+    printf("DATA: "+test1);
+    }
  if (sensor)
     {
         /** -- SENSOR CONFIGURATION PART (optional) --- */
@@ -284,4 +288,3 @@ void app_main()
 printf("%d",ret);
   }
 }
-
