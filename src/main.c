@@ -33,6 +33,10 @@
 static const char *TAG = "MQTT_SAMPLE";
 
 static bme680_sensor_t* sensor = 0;
+static esp_err_t event_handler(void *ctx, system_event_t *event)
+{
+   return ESP_OK;
+}
 //WIFI--WORKING
 static void initialise_wifi(void)
 {
@@ -89,10 +93,7 @@ void i2s_init(){
     i2s_driver_install(I2S_NUM, &i2s_config, 0, NULL);
     i2s_set_pin(I2S_NUM, &pin_config);
 }
-static esp_err_t event_handler(void *ctx, system_event_t *event)
-{
-   return ESP_OK;
-}
+
 //BME680 Sensor--WORKING
 void bme680_test(void *pvParameters)
 {
@@ -226,11 +227,12 @@ void app_main()
     while(1){
     test1 = i2s_read(I2S_NUM,&dest, 32, 0, 1);
     if((test1 == 0) || (test1 == -1)){
-    printf(0);
+    printf("Read Failure");
     }
     else {
         test1 >>= 14;
     printf("DATA: "+test1);
+    }
     }
 //BME SENSOR WORKING
  if (sensor)
