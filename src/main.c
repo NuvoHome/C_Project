@@ -22,20 +22,10 @@
 #include "TCS34725.h"
 #define MQTT_TOPIC "/topic/data"
 #define TASK_STACK_DEPTH 2048
-#define SPI_BUS       HSPI_HOST
-#define SPI_SCK_GPIO 22
-#define SPI_MOSI_GPIO 2
-#define SPI_MISO_GPIO 23
-#define SPI_CS_GPIO 15
-#define SDA_PIN 21
-#define SCL_PIN 22
-//set i2c addresses to connect to 
-// #define MAX44009_ADDRESS1 0x4A
-// #define MAX44009_ADDRESS2 0x4B
-#define I2C_BUS       0
-
+#define SDA_PIN 23
+#define SCL_PIN 26
+#define I2C_BUS 0
 #define I2C_FREQ I2C_FREQ_100K
-
 #define I2C_MASTER_ACK 0
 #define I2C_MASTER_NACK 1
 #define SAMPLE_RATE     (36000)
@@ -43,7 +33,64 @@
 static const char *TAG = "MQTT_SAMPLE";
 
 static bme680_sensor_t* sensor = 0;
-
+//WIFI--WORKING
+static void initialise_wifi(void)
+{
+    tcpip_adapter_init();
+    ESP_ERROR_CHECK( esp_event_loop_init(event_handler, NULL) );
+    wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
+    ESP_ERROR_CHECK( esp_wifi_init(&cfg) );
+    ESP_ERROR_CHECK( esp_wifi_set_storage(WIFI_STORAGE_RAM) );
+    ESP_ERROR_CHECK( esp_wifi_set_mode(WIFI_MODE_STA) );
+    wifi_config_t sta_config = {
+        .sta = {
+            .ssid = "//",
+            .password = "//",
+            .bssid_set = false
+        }
+    };
+    ESP_ERROR_CHECK( esp_wifi_set_config(WIFI_IF_STA, &sta_config) );
+    ESP_ERROR_CHECK( esp_wifi_start() );
+    ESP_ERROR_CHECK( esp_wifi_connect() );
+}
+void i2c_master_init()
+{
+	i2c_config_t i2c_config = {
+		.mode = I2C_MODE_MASTER,
+		.sda_io_num = SDA_PIN,
+		.scl_io_num = SCL_PIN,
+		.sda_pullup_en = GPIO_PULLUP_ENABLE,
+		.scl_pullup_en = GPIO_PULLUP_ENABLE,
+		.master.clk_speed = 40000
+	};
+	i2c_param_config(I2C_NUM_0, &i2c_config);
+	i2c_driver_install(I2C_NUM_0, I2C_MODE_MASTER, 0, 0, 0);
+}
+void i2s_init(){
+        i2s_config_t i2s_config = {
+        .mode = I2S_MODE_MASTER | I2S_MODE_TX | I2S_MODE_DAC_BUILT_IN,                                  // Only TX
+        .sample_rate = SAMPLE_RATE,
+        .bits_per_sample = 16,
+        .channel_format = I2S_CHANNEL_FMT_RIGHT_LEFT,                           //2-channels
+        .communication_format = I2S_COMM_FORMAT_I2S | I2S_COMM_FORMAT_I2S_MSB,
+        .dma_buf_count = 6,
+        .dma_buf_len = 60,
+        .use_apll = false,
+        .intr_alloc_flags = ESP_INTR_FLAG_LEVEL1                                //Interrupt level 1
+    };
+    i2s_pin_config_t pin_config = {
+        .bck_io_num = 11,
+        .ws_io_num = 10,
+        .data_out_num = 12,
+        .data_in_num = -1                                                       //Not used
+    };
+    i2s_driver_install(I2S_NUM, &i2s_config, 0, NULL);
+    i2s_set_pin(I2S_NUM, &pin_config);
+}
+static esp_err_t event_handler(void *ctx, system_event_t *event)
+{
+   return ESP_OK;
+}
 void user_task(void *pvParameters)
 {
     bme680_values_float_t values;
@@ -76,42 +123,9 @@ void user_task(void *pvParameters)
     }
 }
 
-void i2c_master_init()
-{
-	i2c_config_t i2c_config = {
-		.mode = I2C_MODE_MASTER,
-		.sda_io_num = SDA_PIN,
-		.scl_io_num = SCL_PIN,
-		.sda_pullup_en = GPIO_PULLUP_ENABLE,
-		.scl_pullup_en = GPIO_PULLUP_ENABLE,
-		.master.clk_speed = 4000000
-	};
-	i2c_param_config(I2C_NUM_0, &i2c_config);
-	i2c_driver_install(I2C_NUM_0, I2C_MODE_MASTER, 0, 0, 0);
-}
-static esp_err_t event_handler(void *ctx, system_event_t *event)
-{
-   return ESP_OK;
-}
-static void initialise_wifi(void)
-{
-    tcpip_adapter_init();
-    ESP_ERROR_CHECK( esp_event_loop_init(event_handler, NULL) );
-    wifi_init_config_t cfg = WIFI_INIT_CONFIG_DEFAULT();
-    ESP_ERROR_CHECK( esp_wifi_init(&cfg) );
-    ESP_ERROR_CHECK( esp_wifi_set_storage(WIFI_STORAGE_RAM) );
-    ESP_ERROR_CHECK( esp_wifi_set_mode(WIFI_MODE_STA) );
-    wifi_config_t sta_config = {
-        .sta = {
-            .ssid = "Home",
-            .password = "Casabl12",
-            .bssid_set = false
-        }
-    };
-    ESP_ERROR_CHECK( esp_wifi_set_config(WIFI_IF_STA, &sta_config) );
-    ESP_ERROR_CHECK( esp_wifi_start() );
-    ESP_ERROR_CHECK( esp_wifi_connect() );
-}
+
+
+
 // static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event)
 // {
 //     esp_mqtt_client_handle_t client = event->client;
@@ -177,6 +191,7 @@ static esp_err_t i2c_master_read_slave(i2c_port_t i2c_num, uint8_t *data_rd, siz
     i2c_cmd_link_delete(cmd);
     return ret;
 }
+
 void app_main()
 {
     
@@ -184,12 +199,12 @@ void app_main()
     ESP_LOGI(TAG, "[APP] Free memory: %d bytes", esp_get_free_heap_size());
     ESP_LOGI(TAG, "[APP] IDF version: %s", esp_get_idf_version());
 
-    esp_log_level_set("*", ESP_LOG_INFO);
-    esp_log_level_set("MQTT_CLIENT", ESP_LOG_VERBOSE);
-    esp_log_level_set("TRANSPORT_TCP", ESP_LOG_VERBOSE);
-    esp_log_level_set("TRANSPORT_SSL", ESP_LOG_VERBOSE);
-    esp_log_level_set("TRANSPORT", ESP_LOG_VERBOSE);
-    esp_log_level_set("OUTBOX", ESP_LOG_VERBOSE);
+    // esp_log_level_set("*", ESP_LOG_INFO);
+    // esp_log_level_set("MQTT_CLIENT", ESP_LOG_VERBOSE);
+    // esp_log_level_set("TRANSPORT_TCP", ESP_LOG_VERBOSE);
+    // esp_log_level_set("TRANSPORT_SSL", ESP_LOG_VERBOSE);
+    // esp_log_level_set("TRANSPORT", ESP_LOG_VERBOSE);
+    // esp_log_level_set("OUTBOX", ESP_LOG_VERBOSE);
     nvs_flash_init();
     initialise_wifi();
     //  mqtt_app_start();
@@ -199,50 +214,21 @@ void app_main()
     // Give the UART some time to settle
     vTaskDelay(1);
 
-    // #ifdef SPI_USED
-
-    // spi_bus_init (SPI_BUS, SPI_SCK_GPIO, SPI_MISO_GPIO, SPI_MOSI_GPIO);
-
-    // // init the sensor connected to SPI_BUS with SPI_CS_GPIO as chip select.
-    // sensor = bme680_init_sensor (SPI_BUS, 0, SPI_CS_GPIO);
-    
-    // #else  // I2C
-
     // Init all I2C bus interfaces at which BME680 sensors are connected
     i2c_init(I2C_BUS, SCL_PIN, SDA_PIN, I2C_FREQ);
-
     // init the sensor with slave address BME680_I2C_ADDRESS_2 connected to I2C_BUS.
     sensor = bme680_init_sensor (I2C_BUS, BME680_I2C_ADDRESS_2, 0);
-
     // #endif  // SPI_USED
     //for 36Khz sample rates, we create 100Hz sine wave, every cycle need 36000/100 = 360 samples (4-bytes or 8-bytes each sample)
     //depend on bits_per_sample
     //using 6 buffers, we need 60-samples per buffer
     //if 2-channels, 16-bit each channel, total buffer is 360*4 = 1440 bytes
     //if 2-channels, 24/32-bit each channel, total buffer is 360*8 = 2880 bytes
-    i2s_config_t i2s_config = {
-        .mode = I2S_MODE_MASTER | I2S_MODE_TX,                                  // Only TX
-        .sample_rate = SAMPLE_RATE,
-        .bits_per_sample = 16,
-        .channel_format = I2S_CHANNEL_FMT_RIGHT_LEFT,                           //2-channels
-        .communication_format = I2S_COMM_FORMAT_I2S | I2S_COMM_FORMAT_I2S_MSB,
-        .dma_buf_count = 6,
-        .dma_buf_len = 60,
-        .use_apll = false,
-        .intr_alloc_flags = ESP_INTR_FLAG_LEVEL1                                //Interrupt level 1
-    };
-    i2s_pin_config_t pin_config = {
-        .bck_io_num = 26,
-        .ws_io_num = 25,
-        .data_out_num = 22,
-        .data_in_num = -1                                                       //Not used
-    };
-    i2s_driver_install(I2S_NUM, &i2s_config, 0, NULL);
-    i2s_set_pin(I2S_NUM, &pin_config);
-    int dest, try;
+
+    int dest, test1;
     while(1){
-    try = i2s_read(I2S_NUM,&dest, 32, 0, 1);
-    printf(try);
+    test1 = i2s_read(I2S_NUM,&dest, 32, 0, 1);
+    printf("DATA:"+test1);
     }
 
  if (sensor)
@@ -280,8 +266,7 @@ void app_main()
       int r, ret;
       i2c_cmd_handle_t cmd = i2c_cmd_link_create();
     i2c_master_start(cmd);
-    i2c_master_cmd_begin(TCS34725_ADDRESS,cmd,1000 / portTICK_RATE_MS);
-    // i2c_master_write_byte(cmd, TCS34725_ENABLE << 1 | TCS34725_ENABLE_PON, ACK_CHECK_EN);
+        // i2c_master_write_byte(cmd, TCS34725_ENABLE << 1 | TCS34725_ENABLE_PON, ACK_CHECK_EN);
     i2c_master_write_byte(cmd, TCS34725_ENABLE << 1 | TCS34725_ENABLE_PON | TCS34725_ENABLE_AIEN , ACK_CHECK_EN);
     i2c_master_write_byte(cmd, TCS34725_COMMAND_BIT, ACK_CHECK_EN);
     // i2c_master_stop(cmd);
