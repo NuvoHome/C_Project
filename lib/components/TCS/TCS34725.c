@@ -30,7 +30,7 @@ uint32_t tcs_get_Raw_Data(uint16_t* r, uint16_t* g,uint16_t* b,uint16_t* c)
    i2c_master_write_byte(cmd, TCS34725_ADDRESS << 1 | WRITE_BIT, ACK_CHECK_EN);
    i2c_master_write_byte(cmd, TCS34725_COMMAND_BIT, ACK_CHECK_EN);
    i2c_master_stop(cmd);
-   ret = i2c_master_cmd_begin(I2C_EXAMPLE_MASTER_NUM, cmd, 1000 / portTICK_RATE_MS);
+   ret = i2c_master_cmd_begin(TCS34725_RDATAL, cmd, 1000 / portTICK_RATE_MS);
    i2c_cmd_link_delete(cmd);
    if (ret != ESP_OK) {
        return ret;
@@ -66,6 +66,7 @@ uint32_t tcs_get_Raw_Data(uint16_t* r, uint16_t* g,uint16_t* b,uint16_t* c)
       break;
   }
    return ret;
+
 }
 uint8_t read8(uint8_t reg)
 {

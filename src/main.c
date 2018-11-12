@@ -9,6 +9,7 @@
 #include "bme680/bme680.h"
 #include "driver/i2c.h"
 #include "driver/i2s.h"
+#include <driver/adc.h>
 #include <math.h>
 // #include "mqtt_client.h"
 #include "esp_log.h"
@@ -20,22 +21,52 @@
 #include "lwip/dns.h"
 #include "lwip/netdb.h"
 #include "TCS34725.h"
+#include "main.h"
+#include "esp_adc_cal.h"
+#include "AMG/AMG8833.h"
+
 #define MQTT_TOPIC "/topic/data"
+// #define DEFAULT_VREF    1100        //Use adc2_vref_to_gpio() to obtain a better estimate
 #define TASK_STACK_DEPTH 2048
-#define SDA_PIN 23
-#define SCL_PIN 26
-#define I2C_BUS 0
+#define SDA_PIN 15
+#define SCL_PIN 4
+// #define SDA_PIN 22
+// #define SCL_PIN 21
+// #define I2C_BUS 0
 #define I2C_FREQ I2C_FREQ_100K
 #define I2C_MASTER_ACK 0
 #define I2C_MASTER_NACK 1
 #define SAMPLE_RATE     (36000)
 #define I2S_NUM         (0)
-static const char *TAG = "MQTT_SAMPLE";
+#define I2C_MASTER_TX_BUF_DISABLE 0                           /*!< I2C master doesn't need buffer */
+#define I2C_MASTER_RX_BUF_DISABLE 0                           /*!< I2C master doesn't need buffer */
+#define AMG88xx_ADDRESS  0x68
+//motion
+static const adc_channel_t channel = ADC_CHANNEL_6;     //GPIO34 if ADC1, GPIO14 if ADC2
+static const adc_atten_t atten = ADC_ATTEN_DB_0;
+static const adc_unit_t unit = ADC_UNIT_1;
 
+static const char *TAG = "MQTT_SAMPLE";
 static bme680_sensor_t* sensor = 0;
 static esp_err_t event_handler(void *ctx, system_event_t *event)
 {
    return ESP_OK;
+}
+static void pirmotion(){
+ 
+}
+static void emisensor(){
+    ESP_ERROR_CHECK(esp_wifi_stop());
+     int read_raw;
+    adc2_config_channel_atten( ADC2_GPIO14_CHANNEL, ADC_ATTEN_0db );
+    esp_err_t r = adc2_get_raw( ADC2_GPIO14_CHANNEL, ADC_WIDTH_12Bit, &read_raw);
+    if ( r == ESP_OK ) {
+        printf("%d\n", read_raw );
+    } else if ( r == ESP_ERR_TIMEOUT ) {
+        printf("ADC2 used by Wi-Fi.\n");
+    }
+    ESP_ERROR_CHECK( esp_wifi_start() );
+    ESP_ERROR_CHECK( esp_wifi_connect() );
 }
 //WIFI--WORKING
 static void initialise_wifi(void)
@@ -48,8 +79,8 @@ static void initialise_wifi(void)
     ESP_ERROR_CHECK( esp_wifi_set_mode(WIFI_MODE_STA) );
     wifi_config_t sta_config = {
         .sta = {
-            .ssid = "//",
-            .password = "//",
+            .ssid = SSID,
+            .password = PASSWORD,
             .bssid_set = false
         }
     };
@@ -58,37 +89,38 @@ static void initialise_wifi(void)
     ESP_ERROR_CHECK( esp_wifi_connect() );
 }
 //I2C init--WORKING
-void i2c_master_init()
-{
-	i2c_config_t i2c_config = {
-		.mode = I2C_MODE_MASTER,
-		.sda_io_num = SDA_PIN,
-		.scl_io_num = SCL_PIN,
-		.sda_pullup_en = GPIO_PULLUP_ENABLE,
-		.scl_pullup_en = GPIO_PULLUP_ENABLE,
-		.master.clk_speed = 40000
-	};
-	i2c_param_config(I2C_NUM_0, &i2c_config);
-	i2c_driver_install(I2C_NUM_0, I2C_MODE_MASTER, 0, 0, 0);
+void i2c_master_init(int bus)
+{  
+    i2c_config_t conf;
+    conf.mode = I2C_MODE_MASTER;
+    conf.sda_io_num = SDA_PIN;
+    conf.sda_pullup_en = GPIO_PULLUP_ENABLE;
+    conf.scl_io_num = SCL_PIN;
+    conf.scl_pullup_en = GPIO_PULLUP_ENABLE;
+    conf.master.clk_speed = I2C_FREQ;
+    esp_err_t res = i2c_param_config(bus, &conf);
+    printf("Driver param setup : %d\n",res);
+   res = i2c_driver_install(bus, I2C_MODE_MASTER, 0, 0, 0);
+    printf("Driver installed   : %d\n",res);
 }
 //I2S init--TESTING
 void i2s_init(){
         i2s_config_t i2s_config = {
-        .mode = I2S_MODE_MASTER | I2S_MODE_TX | I2S_MODE_DAC_BUILT_IN,                                  // Only TX
-        .sample_rate = SAMPLE_RATE,
-        .bits_per_sample = 16,
+        .mode = I2S_MODE_MASTER | I2S_MODE_RX | I2S_MODE_TX,                                  // Only TX
+        .sample_rate = 16000,
+        .bits_per_sample = 32,
         .channel_format = I2S_CHANNEL_FMT_RIGHT_LEFT,                           //2-channels
+        // .channel_format = I2S_CHANNEL_FMT_ONLY_LEFT,
         .communication_format = I2S_COMM_FORMAT_I2S | I2S_COMM_FORMAT_I2S_MSB,
-        .dma_buf_count = 6,
-        .dma_buf_len = 60,
-        .use_apll = false,
+        .dma_buf_count = 8,
+        .dma_buf_len = 64,
         .intr_alloc_flags = ESP_INTR_FLAG_LEVEL1                                //Interrupt level 1
     };
     i2s_pin_config_t pin_config = {
-        .bck_io_num = 11,
-        .ws_io_num = 10,
-        .data_out_num = 12,
-        .data_in_num = -1                                                       //Not used
+        .bck_io_num = 26,
+        .ws_io_num = 25,
+        .data_out_num = -1,                                                    //Not used
+        .data_in_num = 27                                                     
     };
     i2s_driver_install(I2S_NUM, &i2s_config, 0, NULL);
     i2s_set_pin(I2S_NUM, &pin_config);
@@ -117,8 +149,7 @@ void bme680_test(void *pvParameters)
 
             // get the results and do something with them
             if (bme680_get_results_float (sensor, &values))
-                printf("%.3f BME680 Sensor: %.2f °C, %.2f %%, %.2f hPa, %.2f Ohm\n",
-                       (double)sdk_system_get_time()*1e-3,
+                printf("BME680 Sensor: %.2f °C, %.2f %%, %.2f hPa, %.2f Ohm\n",
                        values.temperature, values.humidity,
                        values.pressure, values.gas_resistance);
         }
@@ -178,6 +209,21 @@ void bme680_test(void *pvParameters)
 //     esp_mqtt_client_handle_t client = esp_mqtt_client_init(&mqtt_cfg);
 //     esp_mqtt_client_start(client);
 // }
+static esp_err_t i2c_master_write_slave_reg(i2c_port_t i2c_num, uint8_t i2c_addr, uint8_t i2c_reg, uint8_t* data_wr, size_t size)
+{
+    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
+    i2c_master_start(cmd);
+    // first, send device address (indicating write) & register to be written
+    i2c_master_write_byte(cmd, ( i2c_addr << 1 ) | WRITE_BIT, ACK_CHECK_EN);
+    // send register we want
+    i2c_master_write_byte(cmd, i2c_reg, ACK_CHECK_EN);
+    // write the data
+    i2c_master_write(cmd, data_wr, size, ACK_CHECK_EN);
+    i2c_master_stop(cmd);
+    esp_err_t ret = i2c_master_cmd_begin(i2c_num, cmd, 1000 / portTICK_RATE_MS);
+    i2c_cmd_link_delete(cmd);
+    return ret;
+}
 static esp_err_t i2c_master_read_slave(i2c_port_t i2c_num, uint8_t *data_rd, size_t size)
 {
     if (size == 0) {
@@ -185,7 +231,7 @@ static esp_err_t i2c_master_read_slave(i2c_port_t i2c_num, uint8_t *data_rd, siz
     }
     i2c_cmd_handle_t cmd = i2c_cmd_link_create();
     i2c_master_start(cmd);
-    i2c_master_write_byte(cmd, (TCS34725_ADDRESS << 1) | READ_BIT, ACK_CHECK_EN);
+    i2c_master_write_byte(cmd, (AMG88xx_ADDRESS << 1) | READ_BIT, ACK_CHECK_EN);
     if (size > 1) {
         i2c_master_read(cmd, data_rd, size - 1, ACK_VAL);
     }
@@ -195,6 +241,32 @@ static esp_err_t i2c_master_read_slave(i2c_port_t i2c_num, uint8_t *data_rd, siz
     i2c_cmd_link_delete(cmd);
     return ret;
 }
+static esp_err_t amg88collect(i2c_port_t i2c_num, uint8_t *data_h, uint8_t *data_l)
+{
+     int ret;
+    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
+    i2c_master_start(cmd);
+    i2c_master_write_byte(cmd, AMG88xx_ADDRESS << 1 | WRITE_BIT, ACK_CHECK_EN);
+    // i2c_master_write_byte(cmd, TCS34725_COMMAND_BIT, ACK_CHECK_EN);
+    i2c_master_stop(cmd);
+    ret = i2c_master_cmd_begin(i2c_num, cmd, 1000 / portTICK_RATE_MS);
+    i2c_cmd_link_delete(cmd);
+    if (ret != ESP_OK) {
+        return ret;
+    }
+    vTaskDelay(30 / portTICK_RATE_MS);
+    vTaskDelay(30 / portTICK_RATE_MS);
+    cmd = i2c_cmd_link_create();
+    i2c_master_start(cmd);
+    i2c_master_write_byte(cmd, AMG88xx_ADDRESS << 1 | READ_BIT, ACK_CHECK_EN);
+    i2c_master_read_byte(cmd, data_h, ACK_VAL);
+    i2c_master_read_byte(cmd, data_l, NACK_VAL);
+    i2c_master_stop(cmd);
+    ret = i2c_master_cmd_begin(i2c_num, cmd, 1000 / portTICK_RATE_MS);
+    i2c_cmd_link_delete(cmd);
+    return ret;
+}
+
 
 void app_main()
 {
@@ -211,29 +283,92 @@ void app_main()
     // esp_log_level_set("OUTBOX", ESP_LOG_VERBOSE);
     nvs_flash_init();
     initialise_wifi();
+    // while(1){
+    i2c_master_init(I2C_BUS); 
+    // i2c_master_init();
+    // printf("1");
+    // }
     //  mqtt_app_start();
     // ESP_LOGI(TAG, "Flash encryption %d", esp_flash_encryption_enabled());
     // esp_flash_encryption_enabled();
     uart_set_baud(0, 115200);
     // Give the UART some time to settle
     vTaskDelay(1);
-
-    // Init all I2C bus interfaces at which BME680 sensors are connected
-    i2c_init(I2C_BUS, SCL_PIN, SDA_PIN, I2C_FREQ);
-    // init the sensor with slave address BME680_I2C_ADDRESS_2 connected to I2C_BUS.
-    sensor = bme680_init_sensor (I2C_BUS, BME680_I2C_ADDRESS_2, 0);
-//Microphone Sensor testing
-    int dest, test1;
+    float pixels[AMG88xx_PIXEL_ARRAY_SIZE];
+    // if(amgbegin() == true){
+        readPixels(pixels, 64);
+    // }
     while(1){
-    test1 = i2s_read(I2S_NUM,&dest, 32, 0, 1);
-    if((test1 == 0) || (test1 == -1)){
-    printf("Read Failure");
+        readPixels(pixels, 64);
+        printf("{");
+    for(int x = 0; x<64; x++){
+        printf("%3f,",pixels[x]);
     }
-    else {
-        test1 >>= 14;
-    printf("DATA: "+test1);
-    }
-    }
+    printf("}");
+}
+
+    // int data;
+    // while(1){
+    //     i2c_master_read_slave(I2C_BUS,&data, 1);
+    //     printf("%d\\",data);
+    // }
+//     adc1_config_width(ADC_WIDTH_BIT_12);
+//     adc1_config_channel_atten(ADC1_GPIO35_CHANNEL, ADC_ATTEN_DB_11);
+// uint32_t val;
+// bool check = false;
+//     while(check == false){
+//         val =  adc1_get_raw(ADC1_GPIO35_CHANNEL);
+//         emisensor();
+//         check = true;
+//     }
+        // printf(val);
+    // i2c_init(I2C_BUS, SCL_PIN, SDA_PIN, I2C_FREQ);
+    // int r, d;
+    // while(1){
+    // amg88collect(I2C_BUS,&r,&d);
+    // printf("%d\\",r);
+    // }
+    // init the sensor with slave address BME680_I2C_ADDRESS_2 connected to I2C_BUS.
+    // sensor = bme680_init_sensor (I2C_BUS, BME680_I2C_ADDRESS_2, 0);
+//TCS sensor--TESTING 
+// while (1){
+// int r, ret;
+// i2c_cmd_handle_t cmd = i2c_cmd_link_create();
+// i2c_master_start(cmd);
+// // i2c_master_write_byte(cmd, TCS34725_ENABLE << 1 | TCS34725_ENABLE_PON, ACK_CHECK_EN);
+// i2c_master_write(cmd, TCS34725_ENABLE << 1 | TCS34725_ENABLE_PON | TCS34725_ENABLE_AIEN , 100, ACK_CHECK_EN);
+// i2c_master_write(cmd, TCS34725_COMMAND_BIT, 100, ACK_CHECK_EN);
+// // i2c_master_stop(cmd);
+// // ret = i2c_master_cmd_begin(I2C_EXAMPLE_MASTER_NUM, cmd, 1000 / portTICK_RATE_MS);
+// // i2c_cmd_link_delete(cmd);
+// //    cmd = i2c_cmd_link_create();
+// //   i2c_master_start(cmd);
+// i2c_master_write(cmd, (TCS34725_RDATAH << 1) | TCS34725_COMMAND_BIT, 100, ACK_CHECK_EN);
+// i2c_master_read(cmd, &r,100, ACK_VAL);   
+// ret = i2c_master_cmd_begin(TCS34725_ADDRESS, cmd, 1000 / portTICK_RATE_MS);
+// i2c_master_stop(cmd);
+// i2c_cmd_link_delete(cmd);
+// //    return ret;
+// return ret;
+// printf("%d",ret);
+// printf("%d",r);
+//   }
+//Microphone Sensor testing
+i2s_init();
+// uint32_t size = 4;
+int samples_value;
+int samples_data;
+// int *samples_data = malloc(((32+8)/16)*16000);
+//     while(1){
+// //     int sample_val;
+// //     sample_val = i2s_read(I2S_NUM, samples_data, &size, 4, 10);
+//     // if(sample_val != -1){
+//     // printf(samples_data);
+//     // }
+//     samples_value = i2s_pop_sample(I2S_NUM,&samples_data,200);
+//     printf(samples_data);
+//     }
+
 //BME SENSOR WORKING
  if (sensor)
     {
@@ -241,7 +376,7 @@ void app_main()
 
         // Changes the oversampling rates to 4x oversampling for temperature
         // and 2x oversampling for humidity. Pressure measurement is skipped.
-        bme680_set_oversampling_rates(sensor, osr_4x, osr_none, osr_2x);
+        // bme680_set_oversampling_rates(sensor, osr_4x, osr_none, osr_2x);
 
         // Change the IIR filter size for temperature and pressure to 7.
         bme680_set_filter_size(sensor, iir_size_7);
@@ -259,31 +394,12 @@ void app_main()
         // configuration part
 
         // Create a task that uses the sensor
+        ESP_LOGI(TAG, "BME680_TEST");
         xTaskCreate(bme680_test, "bme680_test", TASK_STACK_DEPTH, NULL, 2, NULL);
     }
     else{
         printf("Could not initialize BME680 sensor\n");
     }
-    
-//TCS sensor--TESTING 
-while (1){
-int r, ret;
-i2c_cmd_handle_t cmd = i2c_cmd_link_create();
-i2c_master_start(cmd);
-// i2c_master_write_byte(cmd, TCS34725_ENABLE << 1 | TCS34725_ENABLE_PON, ACK_CHECK_EN);
-i2c_master_write_byte(cmd, TCS34725_ENABLE << 1 | TCS34725_ENABLE_PON | TCS34725_ENABLE_AIEN , ACK_CHECK_EN);
-i2c_master_write_byte(cmd, TCS34725_COMMAND_BIT, ACK_CHECK_EN);
-// i2c_master_stop(cmd);
-// ret = i2c_master_cmd_begin(I2C_EXAMPLE_MASTER_NUM, cmd, 1000 / portTICK_RATE_MS);
-// i2c_cmd_link_delete(cmd);
-//    cmd = i2c_cmd_link_create();
-//   i2c_master_start(cmd);
-i2c_master_write_byte(cmd, (TCS34725_RDATAH << 1) | TCS34725_COMMAND_BIT, ACK_CHECK_EN);
-i2c_master_read_byte(cmd, &r , ACK_VAL);   
-ret = i2c_master_cmd_begin(TCS34725_ADDRESS, cmd, 1000 / portTICK_RATE_MS);
-i2c_master_stop(cmd);
-i2c_cmd_link_delete(cmd);
-//    return ret;
-printf("%d",ret);
-  }
+
+
 }

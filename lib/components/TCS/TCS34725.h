@@ -96,6 +96,7 @@
 #define ACK_CHECK_EN              (0x1)              /*!< I2C master will check ack from slave*/
 #define ACK_CHECK_DIS             (0x0)              /*!< I2C master will not check ack from slave */
 #define ACK_VAL                   (0x0)            /*!< I2C ack value */
+
 #define I2C_EXAMPLE_MASTER_NUM    (I2C_NUM_1) /*!< I2C port number for master dev */
 #define NACK_VAL                   (0x1)
 #ifdef __cplusplus
