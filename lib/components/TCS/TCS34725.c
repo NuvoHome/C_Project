@@ -2,179 +2,63 @@
 #include <math.h>
 #include "TCS34725.h"
 #include "driver/i2c.h"
-
-
-float powf(const float x, const float y)
-{
-  return (float)(pow((double)x, (double)y));
+void tcs_i2c_init(int bus)
+{  
+    i2c_config_t conf;
+    conf.mode = I2C_MODE_MASTER;
+    conf.sda_io_num = 15;
+    conf.sda_pullup_en = GPIO_PULLUP_ENABLE;
+    conf.scl_io_num = 4;
+    conf.scl_pullup_en = GPIO_PULLUP_ENABLE;
+    conf.master.clk_speed = 100000;
+    esp_err_t res = i2c_param_config(bus, &conf);
+    printf("Driver param setup : %d\n",res);
+   res = i2c_driver_install(bus, I2C_MODE_MASTER, 0, 0, 0);
+    printf("Driver installed   : %d\n",res);
 }
-
-void write8 (uint8_t reg, uint32_t value)
+esp_err_t tcs_read_reg(i2c_port_t i2c_num,  uint8_t reg_addr, uint8_t *data, uint16_t len)
 {
-  int ret;
-  i2c_cmd_handle_t cmd = i2c_cmd_link_create();
-  i2c_master_start(cmd);
-  i2c_master_write_byte(cmd, TCS34725_ADDRESS << 1 | WRITE_BIT, ACK_CHECK_EN);
-  i2c_master_write_byte(cmd, TCS34725_COMMAND_BIT | reg, ACK_CHECK_EN);
-  i2c_master_write_byte(cmd, value & 0xFF, ACK_CHECK_EN);
-  i2c_master_stop(cmd);
-  ret = i2c_master_cmd_begin(I2C_EXAMPLE_MASTER_NUM, cmd, 1000 / portTICK_RATE_MS);
-  i2c_cmd_link_delete(cmd);
-  return ret;  
+    esp_err_t ret;
+    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
+    i2c_master_start(cmd);
+    i2c_master_write_byte(cmd, (TCS34725_ADDRESS <<1), ACK_CHECK_EN);
+    i2c_master_write_byte(cmd, TCS34725_COMMAND_BIT | reg_addr, ACK_CHECK_EN);
+    i2c_master_stop(cmd);
+    ret = i2c_master_cmd_begin(i2c_num, cmd, 1000 / portTICK_RATE_MS);
+    i2c_cmd_link_delete(cmd);
+    if (ret != ESP_OK) {
+        return ret;
+    }
+    cmd = i2c_cmd_link_create();
+    i2c_master_start(cmd);
+    i2c_master_write_byte(cmd, (TCS34725_ADDRESS <<1)|1, ACK_CHECK_EN);
+    i2c_master_read(cmd, data, len,  I2C_MASTER_LAST_NACK);
+    i2c_master_stop(cmd);
+    ret = i2c_master_cmd_begin(i2c_num, cmd, 1000 / portTICK_RATE_MS);
+    i2c_cmd_link_delete(cmd);
+    return ret;
 }
-uint32_t tcs_get_Raw_Data(uint16_t* r, uint16_t* g,uint16_t* b,uint16_t* c)
+uint8_t tcs_read(uint8_t reg){
+  uint16_t x; uint16_t t;
+tcs_read_reg(I2C_BUS, reg, &x, 2);
+tcs_read_reg(I2C_BUS, reg, &t, 2);
+  x <<= 8;
+  x |= t;
+  return x;
+}
+void getRawData(uint16_t *r, uint16_t *g, uint16_t *b, uint16_t *c)
 {
-   int ret;
-   i2c_cmd_handle_t cmd = i2c_cmd_link_create();
-   i2c_master_start(cmd);
-   i2c_master_write_byte(cmd, TCS34725_ADDRESS << 1 | WRITE_BIT, ACK_CHECK_EN);
-   i2c_master_write_byte(cmd, TCS34725_COMMAND_BIT, ACK_CHECK_EN);
-   i2c_master_stop(cmd);
-   ret = i2c_master_cmd_begin(TCS34725_RDATAL, cmd, 1000 / portTICK_RATE_MS);
-   i2c_cmd_link_delete(cmd);
-   if (ret != ESP_OK) {
-       return ret;
-   }
-   vTaskDelay(30 / portTICK_RATE_MS);
-   cmd = i2c_cmd_link_create();
-   i2c_master_start(cmd);
-   i2c_master_write_byte(cmd, TCS34725_RDATAL << 1 | READ_BIT, ACK_CHECK_EN);
-  //  *r = i2c_master_read_byte(cmd, TCS34725_RDATAL , ACK_VAL);
-
-   i2c_master_stop(cmd);
-   ret = i2c_master_cmd_begin(I2C_EXAMPLE_MASTER_NUM, cmd, 1000 / portTICK_RATE_MS);
-   i2c_cmd_link_delete(cmd);
-     switch (_tcs34725IntegrationTime)
-  {
-    case TCS34725_INTEGRATIONTIME_2_4MS:
-      ets_delay_us(3);
-      break;
-    case TCS34725_INTEGRATIONTIME_24MS:
-      ets_delay_us(24);
-      break;
-    case TCS34725_INTEGRATIONTIME_50MS:
-      ets_delay_us(50);
-      break;
-    case TCS34725_INTEGRATIONTIME_101MS:
-      ets_delay_us(101);
-      break;
-    case TCS34725_INTEGRATIONTIME_154MS:
-      ets_delay_us(154);
-      break;
-    case TCS34725_INTEGRATIONTIME_700MS:
-      ets_delay_us(700);
-      break;
-  }
-   return ret;
-
+  // if (!_tcs34725Initialised) begin();
+  //TRIAL 
+  *c = tcs_read(TCS34725_CDATAL);
+  *r = tcs_read(TCS34725_RDATAL);
+  *g = tcs_read(TCS34725_GDATAL);
+  *b = tcs_read(TCS34725_BDATAL);
+  tcs_read_reg(I2C_BUS,TCS34725_CDATAL,*c,2);
+  tcs_read_reg(I2C_BUS,TCS34725_RDATAL,*r,2);
+  tcs_read_reg(I2C_BUS,TCS34725_GDATAL,*g,2);
+  tcs_read_reg(I2C_BUS,TCS34725_BDATAL,*b,2);
 }
-uint8_t read8(uint8_t reg)
-{
-  int ret;
-  i2c_cmd_handle_t cmd = i2c_cmd_link_create();
-  cmd = i2c_cmd_link_create();
-  i2c_master_start(cmd);
-  i2c_master_read_byte(cmd, reg, ACK_VAL);
-  i2c_master_stop(cmd);
-  ret = i2c_master_cmd_begin(I2C_EXAMPLE_MASTER_NUM, cmd, 1000 / portTICK_RATE_MS);
-  i2c_cmd_link_delete(cmd);
-  return ret;
-}
-// uint16_t read16(uint8_t reg)
-// {
-//     uint16_t x; uint16_t t;
-
-
-// }
-void enable(void)
-{
-  write8(TCS34725_ENABLE, TCS34725_ENABLE_PON);
-//   delay(3);
-  write8(TCS34725_ENABLE, TCS34725_ENABLE_PON | TCS34725_ENABLE_AEN);  
-}
-// void disable(void)
-// {
-//   /* Turn the device off to save power */
-//   uint8_t reg = 0;
-//   reg = read8(TCS34725_ENABLE);
-//   write8(TCS34725_ENABLE, reg & ~(TCS34725_ENABLE_PON | TCS34725_ENABLE_AEN));
-// }
-void setGain(tcs34725Gain_t gain)
-{
-  if (!_tcs34725Initialised) begin();
-
-  /* Update the timing register */
-  write8(TCS34725_CONTROL, gain);
-
-  /* Update value placeholders */
-  _tcs34725Gain = gain;
-}
-void setIntegrationTime(tcs34725IntegrationTime_t it)
-{
-  if (!_tcs34725Initialised) begin();
-
-  /* Update the timing register */
-  write8(TCS34725_ATIME, it);
-
-  /* Update value placeholders */
-  _tcs34725IntegrationTime = it;
-}
-
-bool begin(void)
- 
- {
-    //  Wire.begin();
-  
-  /* Make sure we're actually connected */
-
-  uint8_t x = read8(TCS34725_ID);
-  if (x != 0x44)
-  {
-    printf(x);
-    return false;
-  }
-  // _tcs34725Initialised = true;
-
-  // /* Set default integration time and gain */
-  // setIntegrationTime(_tcs34725IntegrationTime);
-  // setGain(_tcs34725Gain);
-
-  // /* Note: by default, the device is in power down mode on bootup */
-  // enable();
-
-  return true;
-  }
-//   void getRawData (uint16_t *r, uint16_t *g, uint16_t *b, uint16_t *c)
-// {
-
-//   *c = read16(TCS34725_CDATAL);
-//   *r = read16(TCS34725_RDATAL);
-//   *g = read16(TCS34725_GDATAL);
-//   *b = read16(TCS34725_BDATAL);
-  
-//   /* Set a delay for the integration time */
-//   switch (_tcs34725IntegrationTime)
-//   {
-//     case TCS34725_INTEGRATIONTIME_2_4MS:
-//       delay(3);
-//       break;
-//     case TCS34725_INTEGRATIONTIME_24MS:
-//       delay(24);
-//       break;
-//     case TCS34725_INTEGRATIONTIME_50MS:
-//       delay(50);
-//       break;
-//     case TCS34725_INTEGRATIONTIME_101MS:
-//       delay(101);
-//       break;
-//     case TCS34725_INTEGRATIONTIME_154MS:
-//       delay(154);
-//       break;
-//     case TCS34725_INTEGRATIONTIME_700MS:
-//       delay(700);
-//       break;
-//   }
-// }
 uint16_t calculateColorTemperature(uint16_t r, uint16_t g, uint16_t b)
 {
   float X, Y, Z;      /* RGB to XYZ correlation      */

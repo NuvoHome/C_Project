@@ -68,6 +68,17 @@ static void emisensor(){
     ESP_ERROR_CHECK( esp_wifi_start() );
     ESP_ERROR_CHECK( esp_wifi_connect() );
 }
+//WORKING
+static int  amg(){
+    float pixels[AMG88xx_PIXEL_ARRAY_SIZE];
+    readPixels(pixels, 64);
+        printf("{");
+    for(int x = 0; x<=64; x++){
+        printf("%3f,",pixels[x]);
+    }
+    printf("}");
+    return pixels;
+}
 //WIFI--WORKING
 static void initialise_wifi(void)
 {
@@ -157,7 +168,11 @@ void bme680_test(void *pvParameters)
         vTaskDelayUntil(&last_wakeup, 1000 / portTICK_PERIOD_MS);
     }
 }
-
+void tcs(){
+int c,r,g,b;
+getRawData(&r,&g,&b,&c);
+printf("%d, %d",calculateColorTemperature(r,g,b), calculateLux(r,g,b));
+}
 
 
 
@@ -209,63 +224,7 @@ void bme680_test(void *pvParameters)
 //     esp_mqtt_client_handle_t client = esp_mqtt_client_init(&mqtt_cfg);
 //     esp_mqtt_client_start(client);
 // }
-static esp_err_t i2c_master_write_slave_reg(i2c_port_t i2c_num, uint8_t i2c_addr, uint8_t i2c_reg, uint8_t* data_wr, size_t size)
-{
-    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
-    i2c_master_start(cmd);
-    // first, send device address (indicating write) & register to be written
-    i2c_master_write_byte(cmd, ( i2c_addr << 1 ) | WRITE_BIT, ACK_CHECK_EN);
-    // send register we want
-    i2c_master_write_byte(cmd, i2c_reg, ACK_CHECK_EN);
-    // write the data
-    i2c_master_write(cmd, data_wr, size, ACK_CHECK_EN);
-    i2c_master_stop(cmd);
-    esp_err_t ret = i2c_master_cmd_begin(i2c_num, cmd, 1000 / portTICK_RATE_MS);
-    i2c_cmd_link_delete(cmd);
-    return ret;
-}
-static esp_err_t i2c_master_read_slave(i2c_port_t i2c_num, uint8_t *data_rd, size_t size)
-{
-    if (size == 0) {
-        return ESP_OK;
-    }
-    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
-    i2c_master_start(cmd);
-    i2c_master_write_byte(cmd, (AMG88xx_ADDRESS << 1) | READ_BIT, ACK_CHECK_EN);
-    if (size > 1) {
-        i2c_master_read(cmd, data_rd, size - 1, ACK_VAL);
-    }
-    i2c_master_read_byte(cmd, data_rd + size - 1, NACK_VAL);
-    i2c_master_stop(cmd);
-    esp_err_t ret = i2c_master_cmd_begin(i2c_num, cmd, 1000 / portTICK_RATE_MS);
-    i2c_cmd_link_delete(cmd);
-    return ret;
-}
-static esp_err_t amg88collect(i2c_port_t i2c_num, uint8_t *data_h, uint8_t *data_l)
-{
-     int ret;
-    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
-    i2c_master_start(cmd);
-    i2c_master_write_byte(cmd, AMG88xx_ADDRESS << 1 | WRITE_BIT, ACK_CHECK_EN);
-    // i2c_master_write_byte(cmd, TCS34725_COMMAND_BIT, ACK_CHECK_EN);
-    i2c_master_stop(cmd);
-    ret = i2c_master_cmd_begin(i2c_num, cmd, 1000 / portTICK_RATE_MS);
-    i2c_cmd_link_delete(cmd);
-    if (ret != ESP_OK) {
-        return ret;
-    }
-    vTaskDelay(30 / portTICK_RATE_MS);
-    vTaskDelay(30 / portTICK_RATE_MS);
-    cmd = i2c_cmd_link_create();
-    i2c_master_start(cmd);
-    i2c_master_write_byte(cmd, AMG88xx_ADDRESS << 1 | READ_BIT, ACK_CHECK_EN);
-    i2c_master_read_byte(cmd, data_h, ACK_VAL);
-    i2c_master_read_byte(cmd, data_l, NACK_VAL);
-    i2c_master_stop(cmd);
-    ret = i2c_master_cmd_begin(i2c_num, cmd, 1000 / portTICK_RATE_MS);
-    i2c_cmd_link_delete(cmd);
-    return ret;
-}
+
 
 
 void app_main()
@@ -283,35 +242,27 @@ void app_main()
     // esp_log_level_set("OUTBOX", ESP_LOG_VERBOSE);
     nvs_flash_init();
     initialise_wifi();
-    // while(1){
     i2c_master_init(I2C_BUS); 
-    // i2c_master_init();
-    // printf("1");
-    // }
     //  mqtt_app_start();
     // ESP_LOGI(TAG, "Flash encryption %d", esp_flash_encryption_enabled());
     // esp_flash_encryption_enabled();
     uart_set_baud(0, 115200);
     // Give the UART some time to settle
     vTaskDelay(1);
-    float pixels[AMG88xx_PIXEL_ARRAY_SIZE];
-    // if(amgbegin() == true){
-        readPixels(pixels, 64);
-    // }
-    while(1){
-        readPixels(pixels, 64);
-        printf("{");
-    for(int x = 0; x<64; x++){
-        printf("%3f,",pixels[x]);
-    }
-    printf("}");
+//     float pixels[AMG88xx_PIXEL_ARRAY_SIZE];
+//     while(1){
+//         readPixels(pixels, 64);
+//         printf("{");
+//     for(int x = 0; x<=64; x++){
+//         printf("%3f,",pixels[x]);
+//     }
+//     printf("}");
+// }
+int c,r,g,b;
+while(1){
+getRawData(&r,&g,&b,&c);
+printf("%d, %d",calculateColorTemperature(r,g,b), calculateLux(r,g,b));
 }
-
-    // int data;
-    // while(1){
-    //     i2c_master_read_slave(I2C_BUS,&data, 1);
-    //     printf("%d\\",data);
-    // }
 //     adc1_config_width(ADC_WIDTH_BIT_12);
 //     adc1_config_channel_atten(ADC1_GPIO35_CHANNEL, ADC_ATTEN_DB_11);
 // uint32_t val;
@@ -321,15 +272,8 @@ void app_main()
 //         emisensor();
 //         check = true;
 //     }
-        // printf(val);
-    // i2c_init(I2C_BUS, SCL_PIN, SDA_PIN, I2C_FREQ);
-    // int r, d;
-    // while(1){
-    // amg88collect(I2C_BUS,&r,&d);
-    // printf("%d\\",r);
-    // }
     // init the sensor with slave address BME680_I2C_ADDRESS_2 connected to I2C_BUS.
-    // sensor = bme680_init_sensor (I2C_BUS, BME680_I2C_ADDRESS_2, 0);
+    sensor = bme680_init_sensor (I2C_BUS, BME680_I2C_ADDRESS_2, 0);
 //TCS sensor--TESTING 
 // while (1){
 // int r, ret;
@@ -353,11 +297,13 @@ void app_main()
 // printf("%d",ret);
 // printf("%d",r);
 //   }
+
+
 //Microphone Sensor testing
 i2s_init();
 // uint32_t size = 4;
-int samples_value;
-int samples_data;
+// int samples_value;
+// int samples_data;
 // int *samples_data = malloc(((32+8)/16)*16000);
 //     while(1){
 // //     int sample_val;
@@ -400,6 +346,4 @@ int samples_data;
     else{
         printf("Could not initialize BME680 sensor\n");
     }
-
-
 }

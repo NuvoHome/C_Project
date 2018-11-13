@@ -35,14 +35,15 @@
 /**************************************************************************/
 #ifndef _TCS34725_H_
 #define _TCS34725_H_
-
-
 #include <string.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
-#define TCS34725_ADDRESS          (0x29)
+#include "driver/i2c.h"
 
+
+#define TCS34725_ADDRESS          (0x29)
+#define I2C_BUS                   (0)
 #define TCS34725_COMMAND_BIT      (0x80)
 #define DATA_LENGTH               (512) /*!<Data buffer length for test buffer*/
 #define TCS34725_ENABLE           (0x00)
@@ -83,14 +84,6 @@
 #define TCS34725_STATUS           (0x13)
 #define TCS34725_STATUS_AINT      (0x10)    /* RGBC Clean channel interrupt */
 #define TCS34725_STATUS_AVALID    (0x01)    /* Indicates that the RGBC channels have completed an integration cycle */
-#define TCS34725_CDATAL           (0x14)    /* Clear channel data */
-#define TCS34725_CDATAH           (0x15)
-#define TCS34725_RDATAL           (0x16)    /* Red channel data */
-#define TCS34725_RDATAH           (0x17)
-#define TCS34725_GDATAL           (0x18)    /* Green channel data */
-#define TCS34725_GDATAH           (0x19)
-#define TCS34725_BDATAL           (0x1A)    /* Blue channel data */
-#define TCS34725_BDATAH           (0x1B)
 #define WRITE_BIT                 (I2C_MASTER_WRITE) /*!< I2C master write */
 #define READ_BIT                  (I2C_MASTER_READ)  /*!< I2C master read */
 #define ACK_CHECK_EN              (0x1)              /*!< I2C master will check ack from slave*/
@@ -103,7 +96,17 @@
 extern "C"
 {
 #endif
-
+typedef enum 
+{
+TCS34725_CDATAL = 0x14,    /* Clear channel data */
+TCS34725_CDATAH = 0x15,
+TCS34725_RDATAL = 0x16,   /* Red channel data */
+TCS34725_RDATAH = 0x17,
+TCS34725_GDATAL = 0x18,    /* Green channel data */
+TCS34725_GDATAH = 0x19,
+TCS34725_BDATAL = 0x1A,  /* Blue channel data */
+TCS34725_BDATAH = 0x1B,
+};
 typedef enum
 {
   TCS34725_INTEGRATIONTIME_2_4MS  = 0xFF,   /**<  2.4ms - 1 cycle    - Max Count: 1024  */
@@ -124,20 +127,11 @@ typedef enum
 }
 tcs34725Gain_t;
 
-  bool begin(void);
-  void     setIntegrationTime(tcs34725IntegrationTime_t it);
-  void     setGain(tcs34725Gain_t gain);
-  uint32_t tcs_get_Raw_Data(uint16_t* r, uint16_t* g,uint16_t* b,uint16_t* c);
-  uint16_t calculateColorTemperature(uint16_t r, uint16_t g, uint16_t b);
-  uint16_t calculateLux(uint16_t r, uint16_t g, uint16_t b);
-  void     write8 (uint8_t reg, uint32_t value);
-  uint8_t  read8 (uint8_t reg);
-  uint16_t read16 (uint8_t reg);
-  void setInterrupt(bool flag);
-  void clearInterrupt(void);
-  void setIntLimits(uint16_t l, uint16_t h);
-  void     enable(void);
-  
+uint16_t calculateLux(uint16_t r, uint16_t g, uint16_t b);
+uint16_t calculateColorTemperature(uint16_t r, uint16_t g, uint16_t b);
+void getRawData(uint16_t *r, uint16_t *g, uint16_t *b, uint16_t *c);
+uint8_t tcs_read(uint8_t reg);
+esp_err_t tcs_read_reg(i2c_port_t i2c_num,  uint8_t reg_addr, uint8_t *data, uint16_t len);  
   bool _tcs34725Initialised;
   tcs34725Gain_t _tcs34725Gain;
   tcs34725IntegrationTime_t _tcs34725IntegrationTime; 
