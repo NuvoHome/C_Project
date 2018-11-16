@@ -50,7 +50,9 @@ void readAccel() {
   // Read the accelerometer
   int buffer[6];
   for (uint8_t i=0; i<6; i++){
-  lsm_accel_read_reg(I2C_BUS, 0x80 | LSM9DS1_REGISTER_OUT_X_L_XL, buffer[i], 6);
+      int r = 0;
+  lsm_accel_read_reg(I2C_BUS, LSM9DS1_REGISTER_OUT_X_L_XL, r, 1);
+  buffer[i] = r;
   }
   uint8_t xlo = buffer[0];
   int16_t xhi = buffer[1];
@@ -72,7 +74,9 @@ void readMag() {
   // Read the magnetometer
   int buffer[6];
   for (uint8_t i=0; i<6; i++){
-  lsm_magnetometer_read_reg(I2C_BUS, 0x80 | LSM9DS1_REGISTER_OUT_X_L_M,buffer[i],1);
+      int r = 0;
+  lsm_magnetometer_read_reg(I2C_BUS, LSM9DS1_REGISTER_OUT_X_L_M,r ,1);
+  buffer[i] = r;
   }
   uint8_t xlo = buffer[0];
   int16_t xhi = buffer[1];

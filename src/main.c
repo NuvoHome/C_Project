@@ -24,7 +24,7 @@
 #include "main.h"
 #include "esp_adc_cal.h"
 #include "AMG/AMG8833.h"
-
+#include "LSM9DS1/LSM9DS1.h"
 #define MQTT_TOPIC "/topic/data"
 // #define DEFAULT_VREF    1100        //Use adc2_vref_to_gpio() to obtain a better estimate
 #define TASK_STACK_DEPTH 2048
@@ -168,6 +168,23 @@ void bme680_test(void *pvParameters)
         vTaskDelayUntil(&last_wakeup, 1000 / portTICK_PERIOD_MS);
     }
 }
+static esp_err_t i2c_master_read_slave(i2c_port_t i2c_num, uint8_t *data_rd, size_t size)
+{
+    if (size == 0) {
+        return ESP_OK;
+    }
+    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
+    i2c_master_start(cmd);
+    i2c_master_write_byte(cmd, (LSM9DS1_ADDRESS_MAG << 1) | READ_BIT, ACK_CHECK_EN);
+    if (size > 1) {
+        i2c_master_read(cmd, data_rd, size - 1, ACK_VAL);
+    }
+    i2c_master_read_byte(cmd, data_rd + size - 1, NACK_VAL);
+    i2c_master_stop(cmd);
+    esp_err_t ret = i2c_master_cmd_begin(i2c_num, cmd, 1000 / portTICK_RATE_MS);
+    i2c_cmd_link_delete(cmd);
+    return ret;
+}
 void tcs(){
 int c,r,g,b;
 getRawData(&r,&g,&b,&c);
@@ -258,14 +275,28 @@ void app_main()
 //     }
 //     printf("}");
 // }
-int c,r,g,b;
+// int c,r = 0,g,b;
+// while(1){
+// // getRawData(&r,&g,&b,&c);
+// // printf("%d, %d",calculateColorTemperature(r,g,b), calculateLux(r,g,b));
+// // readAccel();
+// int r = 0;
+// // i2c_master_read_slave(I2C_BUS, &r, 1);
+// // readMag();
+// lsm_accel_read_reg(I2C_BUS,  0x80 | LSM9DS1_REGISTER_OUT_X_L_G, r, 1);
+// printf("%d", r);
+// // printf("%d",r);
+// // readMag();
+// //   printf("X:%f Y: %f Z: %f",accelData.x, accelData.y, accelData.z); 
+// }
+    adc1_config_width(ADC_WIDTH_BIT_12);
+    adc1_config_channel_atten(ADC1_GPIO35_CHANNEL, ADC_ATTEN_DB_11);
+uint32_t val;
 while(1){
-getRawData(&r,&g,&b,&c);
-printf("%d, %d",calculateColorTemperature(r,g,b), calculateLux(r,g,b));
+    val =  adc1_get_raw(ADC1_GPIO35_CHANNEL);
+    printf("%d",val);
+
 }
-//     adc1_config_width(ADC_WIDTH_BIT_12);
-//     adc1_config_channel_atten(ADC1_GPIO35_CHANNEL, ADC_ATTEN_DB_11);
-// uint32_t val;
 // bool check = false;
 //     while(check == false){
 //         val =  adc1_get_raw(ADC1_GPIO35_CHANNEL);

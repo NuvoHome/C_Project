@@ -39,7 +39,7 @@ esp_err_t tcs_read_reg(i2c_port_t i2c_num,  uint8_t reg_addr, uint8_t *data, uin
     return ret;
 }
 uint8_t tcs_read(uint8_t reg){
-  uint16_t x; uint16_t t;
+uint16_t x; uint16_t t;
 tcs_read_reg(I2C_BUS, reg, &x, 2);
 tcs_read_reg(I2C_BUS, reg, &t, 2);
   x <<= 8;

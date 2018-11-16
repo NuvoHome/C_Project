@@ -145,13 +145,10 @@
     lsm9ds1Vector_t magData;      // Last read magnetometer data will be available here
     lsm9ds1Vector_t gyroData;     // Last read gyroscope data will be available here
     int16_t         temperature;  // Last read temperzture data will be available here
-    
-
-
-
-
-
-
-
-
+    esp_err_t lsm_accel_read_reg(i2c_port_t i2c_num,  uint8_t reg_addr, uint8_t *data, uint16_t len);
+    esp_err_t lsm_magnetometer_read_reg(i2c_port_t i2c_num,  uint8_t reg_addr, uint8_t *data, uint16_t len);
+    void readAccel();
+    void readMag();
+    void readGyro();
+    void readTemp();
 #endif
