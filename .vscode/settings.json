@@ -30,7 +30,7 @@
     "C_Cpp.intelliSenseEngineFallback": "Disabled",
     "C_Cpp.dimInactiveRegions": false,
     "terminal.integrated.env.osx": {
-        "PATH": "/Users/auggie/.platformio/penv/bin:/Users/auggie/.platformio/penv:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
+        "PATH": "/Users/auggie/.platformio/penv/bin:/Users/auggie/.platformio/penv:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/Users/auggie/.platformio/penv/bin:/Users/auggie/.platformio/penv",
         "PLATFORMIO_CALLER": "vscode"
     }
 }
