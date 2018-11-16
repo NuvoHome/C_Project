@@ -20,7 +20,7 @@
 #include "lwip/sockets.h"
 #include "lwip/dns.h"
 #include "lwip/netdb.h"
-#include "TCS34725.h"
+#include "TCS/TCS34725.h"
 #include "main.h"
 #include "esp_adc_cal.h"
 #include "AMG/AMG8833.h"

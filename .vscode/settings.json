@@ -24,12 +24,13 @@
         "esp_log.h": "c",
         "esp_http_client.h": "c",
         "bme680.h": "c",
-        "unix.h": "c"
+        "unix.h": "c",
+        "tcs34725.h": "c"
     },
     "C_Cpp.intelliSenseEngineFallback": "Disabled",
     "C_Cpp.dimInactiveRegions": false,
     "terminal.integrated.env.osx": {
-        "PATH": "/Users/auggieclement/.platformio/penv/bin:/Users/auggieclement/.platformio/penv:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/Cellar/postgresql/10.4/bin",
+        "PATH": "/Users/auggie/.platformio/penv/bin:/Users/auggie/.platformio/penv:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin",
         "PLATFORMIO_CALLER": "vscode"
     }
 }
