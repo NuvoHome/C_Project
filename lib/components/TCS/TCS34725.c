@@ -2,20 +2,6 @@
 #include <math.h>
 #include "TCS34725.h"
 #include "driver/i2c.h"
-void tcs_i2c_init(int bus)
-{  
-    i2c_config_t conf;
-    conf.mode = I2C_MODE_MASTER;
-    conf.sda_io_num = 15;
-    conf.sda_pullup_en = GPIO_PULLUP_ENABLE;
-    conf.scl_io_num = 4;
-    conf.scl_pullup_en = GPIO_PULLUP_ENABLE;
-    conf.master.clk_speed = 100000;
-    esp_err_t res = i2c_param_config(bus, &conf);
-    printf("Driver param setup : %d\n",res);
-   res = i2c_driver_install(bus, I2C_MODE_MASTER, 0, 0, 0);
-    printf("Driver installed   : %d\n",res);
-}
 esp_err_t tcs_read_reg(i2c_port_t i2c_num,  uint8_t reg_addr, uint8_t *data, uint16_t len)
 {
     esp_err_t ret;
