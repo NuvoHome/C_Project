@@ -25,12 +25,21 @@
         "esp_http_client.h": "c",
         "bme680.h": "c",
         "unix.h": "c",
-        "tcs34725.h": "c"
+        "tcs34725.h": "c",
+        "platform.h": "c",
+        "transport_tcp.h": "c",
+        "transport.h": "c",
+        "mqtt_msg.h": "c",
+        "transport_ws.h": "c",
+        "transport_ssl.h": "c",
+        "mqtt_outbox.h": "c",
+        "esp_mqtt.h": "c",
+        "esp_lwmqtt.h": "c"
     },
     "C_Cpp.intelliSenseEngineFallback": "Disabled",
     "C_Cpp.dimInactiveRegions": false,
     "terminal.integrated.env.osx": {
-        "PATH": "/Users/auggie/.platformio/penv/bin:/Users/auggie/.platformio/penv:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/Users/auggie/.platformio/penv/bin:/Users/auggie/.platformio/penv",
+        "PATH": "/Users/auggieclement/.platformio/penv/bin:/Users/auggieclement/.platformio/penv:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/Cellar/postgresql/10.4/bin",
         "PLATFORMIO_CALLER": "vscode"
     }
 }

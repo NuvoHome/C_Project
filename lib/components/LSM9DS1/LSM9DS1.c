@@ -50,9 +50,9 @@ void readAccel() {
   // Read the accelerometer
   int buffer[6];
   for (uint8_t i=0; i<6; i++){
-      int r = 0;
-  lsm_accel_read_reg(I2C_BUS, LSM9DS1_REGISTER_OUT_X_L_XL, r, 1);
-  buffer[i] = r;
+      int value= 0;
+  lsm_accel_read_reg(I2C_BUS, LSM9DS1_REGISTER_OUT_X_L_XL, value, 1);
+  buffer[i] = value;
   }
   uint8_t xlo = buffer[0];
   int16_t xhi = buffer[1];

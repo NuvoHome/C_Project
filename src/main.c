@@ -10,7 +10,7 @@
 #include "driver/i2s.h"
 #include <driver/adc.h>
 #include <math.h>
-// #include "mqtt_client.h"
+#include "espmqtt/include/mqtt_client.h"
 #include "esp_log.h"
 #include "freertos/semphr.h"
 #include "freertos/queue.h"
@@ -25,15 +25,16 @@
 #include "TCS/TCS34725.h"
 #include "AMG/AMG8833.h"
 #include "LSM9DS1/LSM9DS1.h"
-#define MQTT_TOPIC "/topic/data"
+#define MQTT_TOPIC "augustine.clement101@gmail.com/test"
 #define TASK_STACK_DEPTH 2048
 #define SDA_PIN 15
 #define SCL_PIN 4
 #define I2C_FREQ I2C_FREQ_100K
 #define SAMPLE_RATE (36000)
 #define I2S_NUM (0)
-
+static const char *TAG = "MQTT_SAMPLE";
 static bme680_sensor_t *sensor = 0;
+const static int CONNECTED_BIT = BIT0;
 static esp_err_t event_handler(void *ctx, system_event_t *event)
 {
     return ESP_OK;
@@ -190,61 +191,76 @@ void tcs()
     printf("%d, %d", calculateColorTemperature(r, g, b), calculateLux(r, g, b));
 }
 
-// static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event)
-// {
-//     esp_mqtt_client_handle_t client = event->client;
-//     int msg_id;
-//     // your_context_t *context = event->context;
-//     switch (event->event_id) {
-//         case MQTT_EVENT_CONNECTED:
-//             ESP_LOGI(TAG, "MQTT_EVENT_CONNECTED");
-//             msg_id = esp_mqtt_client_subscribe(client, MQTT_TOPIC, 0);
-//             ESP_LOGI(TAG, "sent subscribe successful, msg_id=%d", msg_id);
+static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event)
+{
+    esp_mqtt_client_handle_t client = event->client;
+    int msg_id;
+    // your_context_t *context = event->context;
+    switch (event->event_id) {
+        case MQTT_EVENT_CONNECTED:
+            ESP_LOGI(TAG, "MQTT_EVENT_CONNECTED");
+            msg_id = esp_mqtt_client_subscribe(client, MQTT_TOPIC, 0);
+            ESP_LOGI(TAG, "sent subscribe successful, msg_id=%d", msg_id);
 
-//         case MQTT_EVENT_DISCONNECTED:
-//             ESP_LOGI(TAG, "MQTT_EVENT_DISCONNECTED");
-//             break;
+        case MQTT_EVENT_DISCONNECTED:
+            ESP_LOGI(TAG, "MQTT_EVENT_DISCONNECTED");
+            break;
+        case MQTT_EVENT_SUBSCRIBED:
+            ESP_LOGI(TAG, "MQTT_EVENT_SUBSCRIBED, msg_id=%d", event->msg_id);
+            msg_id = esp_mqtt_client_publish(client, MQTT_TOPIC, "data", 0, 0, 0);
+            ESP_LOGI(TAG, "sent publish successful, msg_id=%d", msg_id);
+            break;
+        case MQTT_EVENT_UNSUBSCRIBED:
+            ESP_LOGI(TAG, "MQTT_EVENT_UNSUBSCRIBED, msg_id=%d", event->msg_id);
+            break;
+        case MQTT_EVENT_PUBLISHED:
+            ESP_LOGI(TAG, "MQTT_EVENT_PUBLISHED, msg_id=%d", event->msg_id);
+            break;
+        case MQTT_EVENT_DATA:
+            ESP_LOGI(TAG, "MQTT_EVENT_DATA");
+            printf("TOPIC=%.*s\r\n", event->topic_len, event->topic);
+            printf("DATA=%.*s\r\n", event->data_len, event->data);
+            break;
+        case MQTT_EVENT_ERROR:
+            ESP_LOGI(TAG, "MQTT_EVENT_ERROR");
+            break;
+    }
+    return ESP_OK;
+}
+static void mqtt_app_start(void)
+{
+    const esp_mqtt_client_config_t mqtt_cfg = {
+        // .host = "m15.cloudmqtt.com",
+        .uri = "mqtt://rxarkckf:smNb81Ppfe7T@m15.cloudmqtt.com:10793",
+        // .host = "m15.cloudmqtt.com",
+        // .port = 10793,
+        // .username = "rxarkckf",
+        // .password = "smNb81Ppfe7T",
+  
+        .event_handle = mqtt_event_handler,
+        // .user_context = (void *)your_context
+    };
 
-//         case MQTT_EVENT_SUBSCRIBED:
-//             ESP_LOGI(TAG, "MQTT_EVENT_SUBSCRIBED, msg_id=%d", event->msg_id);
-//             msg_id = esp_mqtt_client_publish(client, MQTT_TOPIC, "data", 0, 0, 0);
-//             ESP_LOGI(TAG, "sent publish successful, msg_id=%d", msg_id);
-//             break;
-//         case MQTT_EVENT_UNSUBSCRIBED:
-//             ESP_LOGI(TAG, "MQTT_EVENT_UNSUBSCRIBED, msg_id=%d", event->msg_id);
-//             break;
-//         case MQTT_EVENT_PUBLISHED:
-//             ESP_LOGI(TAG, "MQTT_EVENT_PUBLISHED, msg_id=%d", event->msg_id);
-//             break;
-//         case MQTT_EVENT_DATA:
-//             ESP_LOGI(TAG, "MQTT_EVENT_DATA");
-//             printf("TOPIC=%.*s\r\n", event->topic_len, event->topic);
-//             printf("DATA=%.*s\r\n", event->data_len, event->data);
-//             break;
-//         case MQTT_EVENT_ERROR:
-//             ESP_LOGI(TAG, "MQTT_EVENT_ERROR");
-//             break;
-//     }
-//     return ESP_OK;
-// }
-// static void mqtt_app_start(void)
-// {
-//     const esp_mqtt_client_config_t mqtt_cfg = {
-//         .uri = "mqtt://iot.eclipse.org",
-//         .event_handle = mqtt_event_handler,
-//         // .user_context = (void *)your_context
-//     };
-
-//     esp_mqtt_client_handle_t client = esp_mqtt_client_init(&mqtt_cfg);
-//     esp_mqtt_client_start(client);
-// }
+    esp_mqtt_client_handle_t client = esp_mqtt_client_init(&mqtt_cfg);
+    esp_mqtt_client_start(client);
+}
 
 void app_main()
 {
     nvs_flash_init();
     initialise_wifi();
     i2c_master_init(I2C_BUS);
-    //  mqtt_app_start();
+    ESP_LOGI(TAG, "[APP] Startup..");
+    ESP_LOGI(TAG, "[APP] Free memory: %d bytes", esp_get_free_heap_size());
+    ESP_LOGI(TAG, "[APP] IDF version: %s", esp_get_idf_version());
+
+    esp_log_level_set("*", ESP_LOG_INFO);
+    esp_log_level_set("MQTT_CLIENT", ESP_LOG_VERBOSE);
+    esp_log_level_set("TRANSPORT_TCP", ESP_LOG_VERBOSE);
+    esp_log_level_set("TRANSPORT_SSL", ESP_LOG_VERBOSE);
+    esp_log_level_set("TRANSPORT", ESP_LOG_VERBOSE);
+    esp_log_level_set("OUTBOX", ESP_LOG_VERBOSE);
+    mqtt_app_start();
     // ESP_LOGI(TAG, "Flash encryption %d", esp_flash_encryption_enabled());
     // esp_flash_encryption_enabled();
     uart_set_baud(0, 115200);
@@ -254,45 +270,35 @@ void app_main()
     adc1_config_width(ADC_WIDTH_BIT_12);
     adc1_config_channel_atten(ADC1_GPIO35_CHANNEL, ADC_ATTEN_DB_11);
     // init the sensor with slave address BME680_I2C_ADDRESS_2 connected to I2C_BUS.
-    sensor = bme680_init_sensor(I2C_BUS, BME680_I2C_ADDRESS_2, 0);
+    // sensor = bme680_init_sensor(I2C_BUS, BME680_I2C_ADDRESS_2, 0);
     //TCS--WORKING
 // while(1){
 //     tcs();
 // }
     //LSM9DS1(accel/gyro/magnetometer)--TESTING
-    // while(1){
-    // // readAccel();
-    // // readMag();
-    // // printf("X:%f Y: %f Z: %f",accelData.x, accelData.y, accelData.z);
+    while(1){
+    readAccel();
+    // readMag();
+    // printf("X:%f Y: %f Z: %f",accelData.x, accelData.y, accelData.z);
     // int r = 0;
+    // int f = 0;
     // i2c_master_read_slave(I2C_BUS, &r, 1);
-    // lsm_accel_read_reg(I2C_BUS,  0x80 | LSM9DS1_REGISTER_OUT_X_L_G, r, 1);
-    // printf("%d", r);
+    // lsm_accel_read_reg(I2C_BUS,  LSM9DS1_REGISTER_OUT_X_L_XL, &f, 1);
+    printf("%f,", accelData.x);
     // printf("%d",r);
-    // }
+    }
     //PIR--WORKING
  // // uint32_t val;
  // // pirmotion(val);
-    //Microphone Sensor--TESTING
-    i2s_init();
-    int samples_data;
-    uint32_t size = 4;
-    while(1){
-        int sample_val;
-        sample_val = i2s_read(I2S_NUM, &samples_data, &size, 4, 10);
-        printf("%d",samples_data);
-    }
+    //Microphone Sensor--WORKING
+    // i2s_init();
     // int samples_value;
-    // int samples_data;
-    // int *samples_data = malloc(((32+8)/16)*16000);
+    // float samples_data;
     //     while(1){
-    // //     int sample_val;
-    // //     sample_val = i2s_read(I2S_NUM, samples_data, &size, 4, 10);
-    //     // if(sample_val != -1){
-    //     // printf(samples_data);
-    //     // }
-    //     samples_value = i2s_pop_sample(I2S_NUM,&samples_data,200);
-    //     printf(samples_data);
+    //     samples_value = i2s_pop_sample(I2S_NUM,&samples_data,2);
+    //     if(samples_value != -1){
+    //     printf("%f,",samples_data);
+    //     }
     //     }
 
     //BME SENSOR--WORKING
