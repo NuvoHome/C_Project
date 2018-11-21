@@ -34,7 +34,11 @@
         "transport_ssl.h": "c",
         "mqtt_outbox.h": "c",
         "esp_mqtt.h": "c",
-        "esp_lwmqtt.h": "c"
+        "esp_lwmqtt.h": "c",
+        "lwmqtt.h": "c",
+        "memoryfwd.h": "c",
+        "mqtt.h": "c",
+        "main.h": "c"
     },
     "C_Cpp.intelliSenseEngineFallback": "Disabled",
     "C_Cpp.dimInactiveRegions": false,
