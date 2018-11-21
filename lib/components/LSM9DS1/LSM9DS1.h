@@ -34,6 +34,8 @@
 #define ACK_VAL                   (0x0)            /*!< I2C ack value */
 #define NACK_VAL                   (0x1)
 #define I2C_BUS                   (0)
+#define SENSORS_GRAVITY_EARTH     9.80665F           /**< Earth's gravity in m/s^2 */
+#define SENSORS_GRAVITY_STANDARD  SENSORS_GRAVITY_EARTH
   typedef enum
     {
       LSM9DS1_REGISTER_WHO_AM_I_XG         = 0x0F,
@@ -147,8 +149,16 @@
     int16_t         temperature;  // Last read temperzture data will be available here
     esp_err_t lsm_accel_read_reg(i2c_port_t i2c_num,  uint8_t reg_addr, uint8_t *data, uint16_t len);
     esp_err_t lsm_magnetometer_read_reg(i2c_port_t i2c_num,  uint8_t reg_addr, uint8_t *data, uint16_t len);
+    esp_err_t lsm_accel_write_reg(i2c_port_t i2c_num, uint8_t i2c_reg, uint8_t* data_wr, size_t size);
+    esp_err_t lsm_mag_write_reg(i2c_port_t i2c_num, uint8_t i2c_reg, uint8_t* data, size_t size);
+    void lsmbegin();
     void readAccel();
     void readMag();
     void readGyro();
     void readTemp();
+    int8_t  _csm, _csxg, _mosi, _miso, _clk;
+    float   _accel_mg_lsb;
+    float   _mag_mgauss_lsb;
+    float   _gyro_dps_digit;
+
 #endif
