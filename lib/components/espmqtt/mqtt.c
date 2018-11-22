@@ -91,7 +91,7 @@ static bool client_connect(mqtt_client *client)
                   client->settings->port,
                   remote_ip.sin_port);
 
-
+        mqtt_info("output %d",connect(client->socket, (struct sockaddr *)(&remote_ip), sizeof(struct sockaddr)));
         if (connect(client->socket, (struct sockaddr *)(&remote_ip), sizeof(struct sockaddr)) != 00) {
             mqtt_error("Connect failed");
             goto failed3;
