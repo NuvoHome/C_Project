@@ -10,46 +10,72 @@
 static const char *TAG = "MQTT_SAMPLE";
 static bme680_sensor_t *sensor = 0;
 const static int CONNECTED_BIT = BIT0;
+EventGroupHandle_t esp32_event_group = NULL;
+const static int WIFI_CONNECTED_BIT = BIT0;
+const static int MQTT_PUBLISHED_BIT = BIT1;
+const static int MQTT_INITIATE_PUBLISH_BIT = BIT2;
 static esp_err_t event_handler(void *ctx, system_event_t *event)
 {
     return ESP_OK;
 }
 //PIR--WORKING
-static void pirmotion(uint32_t val)
+static uint32_t val;
+static int pirmotion()
 {
         val = adc1_get_raw(ADC1_GPIO35_CHANNEL);
-        printf("%d", val);
+       return val;
 }
 //EMI--WORKING
-static void emisensor()
+static int read_raw;
+
+static int emisensor()
 {
     ESP_ERROR_CHECK(esp_wifi_stop());
-    int read_raw;
     adc2_config_channel_atten(ADC2_GPIO14_CHANNEL, ADC_ATTEN_0db);
     esp_err_t r = adc2_get_raw(ADC2_GPIO14_CHANNEL, ADC_WIDTH_12Bit, &read_raw);
     if (r == ESP_OK)
     {
-        printf("%d\n", read_raw);
+        // printf("%d\n", read_raw);
+        return read_raw;
     }
     else if (r == ESP_ERR_TIMEOUT)
     {
         printf("ADC2 used by Wi-Fi.\n");
+        return 0;
+    }
+    else {
+        return 1;
     }
     ESP_ERROR_CHECK(esp_wifi_start());
     ESP_ERROR_CHECK(esp_wifi_connect());
 }
 //AMG--WORKING
+static float pixels[AMG88xx_PIXEL_ARRAY_SIZE];
 static int amg()
 {
-    float pixels[AMG88xx_PIXEL_ARRAY_SIZE];
     readPixels(pixels, 64);
-    printf("{");
-    for (int x = 0; x <= 64; x++)
-    {
-        printf("%3f,", pixels[x]);
-    }
-    printf("}");
+    // printf("{");
+    // for (int x = 0; x <= 64; x++)
+    // {
+    //     printf("%3f,", pixels[x]);
+    // }
+    // printf("}");
     return pixels;
+}
+//TCS--WORKING
+static int tcs_array[10];
+int tcs()
+{
+    int c, r, g, b;
+    getRawData(&r, &g, &b, &c);
+    tcs_array[0] = r;
+    tcs_array[1] = g;
+    tcs_array[2] = b;
+    tcs_array[3] = c;
+    tcs_array[4] = calculateColorTemperature(r, g, b);
+    tcs_array[5] = calculateLux(r, g, b);
+    // printf("%d, %d", calculateColorTemperature(r, g, b), calculateLux(r, g, b));
+    return tcs;
 }
 //WIFI--WORKING
 static void initialise_wifi(void)
@@ -109,6 +135,7 @@ void i2s_init()
 }
 
 //BME680 Sensor--WORKING
+int bme_sensor_value[4];
 void bme680_test(void *pvParameters)
 {
     bme680_values_float_t values;
@@ -118,8 +145,7 @@ void bme680_test(void *pvParameters)
     // as long as sensor configuration isn't changed, duration is constant
     uint32_t duration = bme680_get_measurement_duration(sensor);
 
-    while (1)
-    {
+
         // trigger the sensor to start one TPHG measurement cycle
         if (bme680_force_measurement(sensor))
         {
@@ -134,10 +160,13 @@ void bme680_test(void *pvParameters)
                 printf("BME680 Sensor: %.2f °C, %.2f %%, %.2f hPa, %.2f Ohm\n",
                        values.temperature, values.humidity,
                        values.pressure, values.gas_resistance);
+                       bme_sensor_value[0] = values.temperature;
+                       bme_sensor_value[1] = values.humidity;
+                       bme_sensor_value[2] = values.pressure;
+                       bme_sensor_value[3] = values.gas_resistance;
         }
         // passive waiting until 1 second is over
         vTaskDelayUntil(&last_wakeup, 1000 / portTICK_PERIOD_MS);
-    }
 }
 static esp_err_t i2c_master_read_slave(i2c_port_t i2c_num, uint8_t *data_rd, size_t size)
 {
@@ -158,59 +187,66 @@ static esp_err_t i2c_master_read_slave(i2c_port_t i2c_num, uint8_t *data_rd, siz
     i2c_cmd_link_delete(cmd);
     return ret;
 }
-//TCS--WORKING
-void tcs()
+
+static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event)
 {
-    int c, r, g, b;
-    getRawData(&r, &g, &b, &c);
-    printf("%d, %d", calculateColorTemperature(r, g, b), calculateLux(r, g, b));
+    esp_mqtt_client_handle_t client = event->client;
+    int msg_id;
+    // your_context_t *context = event->context;
+    switch (event->event_id) {
+        case MQTT_EVENT_CONNECTED:
+            ESP_LOGI(TAG, "MQTT_EVENT_CONNECTED");
+            msg_id = esp_mqtt_client_subscribe(client, MQTT_TOPIC, 0);
+            ESP_LOGI(TAG, "sent subscribe successful, msg_id=%d", msg_id);
+
+        case MQTT_EVENT_DISCONNECTED:
+            ESP_LOGI(TAG, "MQTT_EVENT_DISCONNECTED");
+            break;
+        case MQTT_EVENT_SUBSCRIBED:
+            ESP_LOGI(TAG, "MQTT_EVENT_SUBSCRIBED, msg_id=%d", event->msg_id);
+
+          for (int x = 0; x <= 64; x++){
+      msg_id = esp_mqtt_client_publish(client, MQTT_TOPIC, (char)pixels[x], 0, 0, 0);
+ }
+        for (int x = 0; x <6; x++){
+ msg_id = esp_mqtt_client_publish(client, MQTT_TOPIC, (char)tcs_array[x], 0, 0, 0);
+ }
+            msg_id = esp_mqtt_client_publish(client, MQTT_TOPIC, (char)val, 0, 0, 0);
+            msg_id = esp_mqtt_client_publish(client, MQTT_TOPIC, (char)read_raw, 0, 0, 0);
+            for(int x = 0; x <5; x++){
+            msg_id = esp_mqtt_client_publish(client, MQTT_TOPIC, (char)bme_sensor_value[0], 0, 0, 0);
+            msg_id = esp_mqtt_client_publish(client, MQTT_TOPIC, (char)bme_sensor_value[1], 0, 0, 0);
+            msg_id = esp_mqtt_client_publish(client, MQTT_TOPIC, (char)bme_sensor_value[2], 0, 0, 0);
+            msg_id = esp_mqtt_client_publish(client, MQTT_TOPIC, (char)bme_sensor_value[3], 0, 0, 0);
+            }
+            ESP_LOGI(TAG, "sent publish successful, msg_id=%d", msg_id);
+            break;
+        case MQTT_EVENT_UNSUBSCRIBED:
+            ESP_LOGI(TAG, "MQTT_EVENT_UNSUBSCRIBED, msg_id=%d", event->msg_id);
+            break;
+        case MQTT_EVENT_PUBLISHED:
+            ESP_LOGI(TAG, "MQTT_EVENT_PUBLISHED, msg_id=%d", event->msg_id);
+            break;
+        case MQTT_EVENT_DATA:
+            ESP_LOGI(TAG, "MQTT_EVENT_DATA");
+            printf("TOPIC=%.*s\r\n", event->topic_len, event->topic);
+            printf("DATA=%.*s\r\n", event->data_len, event->data);
+            break;
+        case MQTT_EVENT_ERROR:
+            ESP_LOGI(TAG, "MQTT_EVENT_ERROR");
+            break;
+    }
+    return ESP_OK;
 }
-
-// static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event)
-// {
-//     esp_mqtt_client_handle_t client = event->client;
-//     int msg_id;
-//     // your_context_t *context = event->context;
-//     switch (event->event_id) {
-//         case MQTT_EVENT_CONNECTED:
-//             ESP_LOGI(TAG, "MQTT_EVENT_CONNECTED");
-//             msg_id = esp_mqtt_client_subscribe(client, MQTT_TOPIC, 0);
-//             ESP_LOGI(TAG, "sent subscribe successful, msg_id=%d", msg_id);
-
-//         case MQTT_EVENT_DISCONNECTED:
-//             ESP_LOGI(TAG, "MQTT_EVENT_DISCONNECTED");
-//             break;
-//         case MQTT_EVENT_SUBSCRIBED:
-//             ESP_LOGI(TAG, "MQTT_EVENT_SUBSCRIBED, msg_id=%d", event->msg_id);
-//             msg_id = esp_mqtt_client_publish(client, MQTT_TOPIC, "data", 0, 0, 0);
-//             ESP_LOGI(TAG, "sent publish successful, msg_id=%d", msg_id);
-//             break;
-//         case MQTT_EVENT_UNSUBSCRIBED:
-//             ESP_LOGI(TAG, "MQTT_EVENT_UNSUBSCRIBED, msg_id=%d", event->msg_id);
-//             break;
-//         case MQTT_EVENT_PUBLISHED:
-//             ESP_LOGI(TAG, "MQTT_EVENT_PUBLISHED, msg_id=%d", event->msg_id);
-//             break;
-//         case MQTT_EVENT_DATA:
-//             ESP_LOGI(TAG, "MQTT_EVENT_DATA");
-//             printf("TOPIC=%.*s\r\n", event->topic_len, event->topic);
-//             printf("DATA=%.*s\r\n", event->data_len, event->data);
-//             break;
-//         case MQTT_EVENT_ERROR:
-//             ESP_LOGI(TAG, "MQTT_EVENT_ERROR");
-//             break;
-//     }
-//     return ESP_OK;
-// }
 // static void mqtt_app_start(void)
 // {
 //     const esp_mqtt_client_config_t mqtt_cfg = {
 //         // .host = "m15.cloudmqtt.com",
-//         .uri = "mqtt://rxarkckf:smNb81Ppfe7T@m15.cloudmqtt.com:10793",
+//         .uri = "mqtt://rxarkckf:gzmXEr4rAClH@m15.cloudmqtt.com:10793",
 //         // .host = "m15.cloudmqtt.com",
 //         // .port = 10793,
 //         // .username = "rxarkckf",
-//         // .password = "smNb81Ppfe7T",
+//         // .password = "gzmXEr4rAClH",
   
 //         .event_handle = mqtt_event_handler,
 //         // .user_context = (void *)your_context
@@ -224,7 +260,7 @@ void app_main()
 {
     nvs_flash_init();
     initialise_wifi();
-    i2c_master_init(I2C_BUS);
+    // i2c_master_init(I2C_BUS);
     ESP_LOGI(TAG, "[APP] Startup..");
     ESP_LOGI(TAG, "[APP] Free memory: %d bytes", esp_get_free_heap_size());
     ESP_LOGI(TAG, "[APP] IDF version: %s", esp_get_idf_version());
@@ -235,7 +271,6 @@ void app_main()
     esp_log_level_set("TRANSPORT_SSL", ESP_LOG_VERBOSE);
     esp_log_level_set("TRANSPORT", ESP_LOG_VERBOSE);
     esp_log_level_set("OUTBOX", ESP_LOG_VERBOSE);
-    // mqtt_app_start();
     // ESP_LOGI(TAG, "Flash encryption %d", esp_flash_encryption_enabled());
     // esp_flash_encryption_enabled();
     uart_set_baud(0, 115200);
@@ -245,10 +280,11 @@ void app_main()
     adc1_config_width(ADC_WIDTH_BIT_12);
     adc1_config_channel_atten(ADC1_GPIO35_CHANNEL, ADC_ATTEN_DB_11);
     //MQTT testing
-    gb_mqttClient = mqtt_start(&settings);
-    while(1){
-    subscribe_cb(gb_mqttClient, NULL);
-    }
+    // gb_mqttClient = mqtt_start(&settings);
+    // while(1){
+    // // subscribe_cb(gb_mqttClient, NULL);
+    //     update_cb(gb_mqttClient, NULL);
+    // }
     // init the sensor with slave address BME680_I2C_ADDRESS_2 connected to I2C_BUS.
     // sensor = bme680_init_sensor(I2C_BUS, BME680_I2C_ADDRESS_2, 0);
     //TCS--WORKING
@@ -256,17 +292,17 @@ void app_main()
 //     tcs();
 // }
     //LSM9DS1(accel/gyro/magnetometer)--TESTING
-    while(1){
-    readAccel();
-    // readMag();
-    // printf("X:%f Y: %f Z: %f",accelData.x, accelData.y, accelData.z);
-    // int r = 0;
-    // int f = 0;
-    // i2c_master_read_slave(I2C_BUS, &r, 1);
-    // lsm_accel_read_reg(I2C_BUS,  LSM9DS1_REGISTER_OUT_X_L_XL, &f, 1);
-    printf("%f,", accelData.x);
-    // printf("%d",r);
-    }
+    // while(1){
+    // readAccel();
+    // // readMag();
+    // // printf("X:%f Y: %f Z: %f",accelData.x, accelData.y, accelData.z);
+    // // int r = 0;
+    // // int f = 0;
+    // // i2c_master_read_slave(I2C_BUS, &r, 1);
+    // // lsm_accel_read_reg(I2C_BUS,  LSM9DS1_REGISTER_OUT_X_L_XL, &f, 1);
+    // printf("%f,", accelData.x);
+    // // printf("%d",r);
+    // }
     //PIR--WORKING
  // // uint32_t val;
  // // pirmotion(val);
@@ -280,9 +316,45 @@ void app_main()
     //     printf("%f,",samples_data);
     //     }
     //     }
+    const esp_mqtt_client_config_t mqtt_cfg = {
+        .host = "10.0.1.29",
+        // .uri = "mqtt://@m15.cloudmqtt.com:10793",
+        // .host = "m15.cloudmqtt.com",
+        .port = 1883,
+        // .username = "rxarkckf",
+        // .password = "gzmXEr4rAClH",
+  
+        // .event_handle = mqtt_event_handler,
+        // .user_context = (void *)your_context
+    };
 
-    //BME SENSOR--WORKING
-    if (sensor)
+    esp_mqtt_client_handle_t client = esp_mqtt_client_init(&mqtt_cfg);
+    while(esp_mqtt_client_start(client)){
+        if (esp_mqtt_client_subscribe(client, MQTT_TOPIC, 0) == true){
+                  for (int x = 0; x <= 64; x++){
+esp_mqtt_client_publish(client, MQTT_TOPIC, (char)pixels[x], 0, 0, 0);
+ }
+        for (int x = 0; x <6; x++){
+esp_mqtt_client_publish(client, MQTT_TOPIC, (char)tcs_array[x], 0, 0, 0);
+ }
+            esp_mqtt_client_publish(client, MQTT_TOPIC, (char)val, 0, 0, 0);
+            esp_mqtt_client_publish(client, MQTT_TOPIC, (char)read_raw, 0, 0, 0);
+            for(int x = 0; x <5; x++){
+            esp_mqtt_client_publish(client, MQTT_TOPIC, (char)bme_sensor_value[0], 0, 0, 0);
+            esp_mqtt_client_publish(client, MQTT_TOPIC, (char)bme_sensor_value[1], 0, 0, 0);
+            esp_mqtt_client_publish(client, MQTT_TOPIC, (char)bme_sensor_value[2], 0, 0, 0);
+            esp_mqtt_client_publish(client, MQTT_TOPIC, (char)bme_sensor_value[3], 0, 0, 0);
+            }
+        }
+    }
+    
+//EVERYTHING TOGETHER HAHAHAHA
+        // xTaskCreate(mqtt_event_handler,"mqtt",TASK_STACK_DEPTH, NULL, 2, NULL);
+    amg();
+    emisensor();
+    pirmotion();
+    tcs();
+if (sensor)
     {
         /** -- SENSOR CONFIGURATION PART (optional) --- */
 
@@ -312,4 +384,6 @@ void app_main()
     {
         printf("Could not initialize BME680 sensor\n");
     }
+            // mqtt_app_start();
+    
 }

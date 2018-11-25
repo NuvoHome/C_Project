@@ -24,23 +24,24 @@
 #include "TCS/TCS34725.h"
 #include "AMG/AMG8833.h"
 #include "LSM9DS1/LSM9DS1.h"
-#include "espmqtt/include/mqtt.h"
+// #include "espmqtt/include/mqtt.h"
+#include "esp-mqtt-master/include/mqtt_client.h"
 #define WEB_SERVER                  "45.79.8.213"
 #define WEB_PORT                    1883                                // should be an integer and not a string
 #define SSID "Home"
 #define PASSWORD "Casabl12"
 #define FIRMWARE_UPG_URL "10.0.1.29:8080/firmware.bin"
 
- void connected_cb(void *self, void *params);
-void disconnected_cb(void *self, void *params);
-void reconnect_cb(void *self, void *params);
-void subscribe_cb(void *self, void *params);
-void update_cb(void *self, void *params);
-void publish_cb(void *self, void *params);
-void data_cb(void *self, void *params);
-void wifi_conn_init(void);
+//  void connected_cb(void *self, void *params);
+// void disconnected_cb(void *self, void *params);
+// void reconnect_cb(void *self, void *params);
+// void subscribe_cb(void *self, void *params);
+// void update_cb(void *self, void *params);
+// void publish_cb(void *self, void *params);
+// void data_cb(void *self, void *params);
+// void wifi_conn_init(void);
 
-extern mqtt_client * gb_mqttClient;
-extern mqtt_settings settings;
+// extern mqtt_client * gb_mqttClient;
+// extern mqtt_settings settings;
 
 #endif
