@@ -51,16 +51,17 @@ static int emisensor()
 }
 //AMG--WORKING
 static float pixels[AMG88xx_PIXEL_ARRAY_SIZE];
+static char pixelchar[AMG88xx_PIXEL_ARRAY_SIZE];
 static int amg()
 {
     readPixels(pixels, 64);
-    // printf("{");
-    // for (int x = 0; x <= 64; x++)
-    // {
-    //     printf("%3f,", pixels[x]);
-    // }
-    // printf("}");
-    return pixels;
+    for (int x = 0; x <= 64; x++)
+    {
+    gcvt(pixels[x], 6, pixelchar[x]); 
+
+        // printf("%3f,", pixels[x]);
+    }
+    return pixelchar;
 }
 //TCS--WORKING
 static int tcs_array[10];
@@ -205,20 +206,17 @@ static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event)
         case MQTT_EVENT_SUBSCRIBED:
             ESP_LOGI(TAG, "MQTT_EVENT_SUBSCRIBED, msg_id=%d", event->msg_id);
 
-          for (int x = 0; x <= 64; x++){
-      msg_id = esp_mqtt_client_publish(client, MQTT_TOPIC, (char)pixels[x], 0, 0, 0);
- }
-        for (int x = 0; x <6; x++){
- msg_id = esp_mqtt_client_publish(client, MQTT_TOPIC, (char)tcs_array[x], 0, 0, 0);
- }
-            msg_id = esp_mqtt_client_publish(client, MQTT_TOPIC, (char)val, 0, 0, 0);
-            msg_id = esp_mqtt_client_publish(client, MQTT_TOPIC, (char)read_raw, 0, 0, 0);
-            for(int x = 0; x <5; x++){
-            msg_id = esp_mqtt_client_publish(client, MQTT_TOPIC, (char)bme_sensor_value[0], 0, 0, 0);
-            msg_id = esp_mqtt_client_publish(client, MQTT_TOPIC, (char)bme_sensor_value[1], 0, 0, 0);
-            msg_id = esp_mqtt_client_publish(client, MQTT_TOPIC, (char)bme_sensor_value[2], 0, 0, 0);
-            msg_id = esp_mqtt_client_publish(client, MQTT_TOPIC, (char)bme_sensor_value[3], 0, 0, 0);
-            }
+        //   for (int x = 0; x <= 64; x++){
+      msg_id = esp_mqtt_client_publish(client, MQTT_TOPIC, pixelchar[1], 0, 0, 0);
+//  }
+//         for (int x = 0; x <6; x++){
+//  msg_id = esp_mqtt_client_publish(client, MQTT_TOPIC, (char)tcs_array[x], 0, 0, 0);
+//  }
+            // msg_id = esp_mqtt_client_publish(client, MQTT_TOPIC, "Hello"/*(char)val*/, 0, 0, 0);
+            // msg_id = esp_mqtt_client_publish(client, MQTT_TOPIC, (char)read_raw, 0, 0, 0);
+    //         for(int x = 0; x <4; x++){
+    //         msg_id = esp_mqtt_client_publish(client, MQTT_TOPIC, (char)bme_sensor_value[x], 0, 0, 0);
+    // }
             ESP_LOGI(TAG, "sent publish successful, msg_id=%d", msg_id);
             break;
         case MQTT_EVENT_UNSUBSCRIBED:
@@ -238,29 +236,30 @@ static esp_err_t mqtt_event_handler(esp_mqtt_event_handle_t event)
     }
     return ESP_OK;
 }
-// static void mqtt_app_start(void)
-// {
-//     const esp_mqtt_client_config_t mqtt_cfg = {
-//         // .host = "m15.cloudmqtt.com",
-//         .uri = "mqtt://rxarkckf:gzmXEr4rAClH@m15.cloudmqtt.com:10793",
-//         // .host = "m15.cloudmqtt.com",
-//         // .port = 10793,
-//         // .username = "rxarkckf",
-//         // .password = "gzmXEr4rAClH",
+static void mqtt_app_start(void)
+{
+    const esp_mqtt_client_config_t mqtt_cfg = {
+        .host = "10.0.1.29",
+        // .uri = "mqtt://rxarkckf:gzmXEr4rAClH@m15.cloudmqtt.com:10793",
+        // .host = "m15.cloudmqtt.com",
+        .port = 1883,
+        // .username = "rxarkckf",
+        // .password = "gzmXEr4rAClH",
   
-//         .event_handle = mqtt_event_handler,
-//         // .user_context = (void *)your_context
-//     };
+        .event_handle = mqtt_event_handler,
+        // .user_context = (void *)your_context
+    };
 
-//     esp_mqtt_client_handle_t client = esp_mqtt_client_init(&mqtt_cfg);
-//     esp_mqtt_client_start(client);
-// }
+    esp_mqtt_client_handle_t client = esp_mqtt_client_init(&mqtt_cfg);
+    esp_mqtt_client_start(client);
+}
 
 void app_main()
 {
     nvs_flash_init();
     initialise_wifi();
-    // i2c_master_init(I2C_BUS);
+ 
+    i2c_master_init(I2C_BUS);
     ESP_LOGI(TAG, "[APP] Startup..");
     ESP_LOGI(TAG, "[APP] Free memory: %d bytes", esp_get_free_heap_size());
     ESP_LOGI(TAG, "[APP] IDF version: %s", esp_get_idf_version());
@@ -279,14 +278,48 @@ void app_main()
     //init ADC1(PIR MOTION SENSOR) width and attenuation
     adc1_config_width(ADC_WIDTH_BIT_12);
     adc1_config_channel_atten(ADC1_GPIO35_CHANNEL, ADC_ATTEN_DB_11);
+ 
+
     //MQTT testing
-    // gb_mqttClient = mqtt_start(&settings);
-    // while(1){
-    // // subscribe_cb(gb_mqttClient, NULL);
-    //     update_cb(gb_mqttClient, NULL);
-    // }
-    // init the sensor with slave address BME680_I2C_ADDRESS_2 connected to I2C_BUS.
-    // sensor = bme680_init_sensor(I2C_BUS, BME680_I2C_ADDRESS_2, 0);
+        while(1){
+    amg();
+//     emisensor();
+//     pirmotion();
+//     tcs();
+// if (sensor)
+//     {
+//         /** -- SENSOR CONFIGURATION PART (optional) --- */
+
+//         // Changes the oversampling rates to 4x oversampling for temperature
+//         // and 2x oversampling for humidity. Pressure measurement is skipped.
+//         // bme680_set_oversampling_rates(sensor, osr_4x, osr_none, osr_2x);
+
+//         // Change the IIR filter size for temperature and pressure to 7.
+//         bme680_set_filter_size(sensor, iir_size_7);
+
+//         // Change the heater profile 0 to 200 degree Celcius for 100 ms.
+//         bme680_set_heater_profile(sensor, 0, 200, 100);
+//         bme680_use_heater_profile(sensor, 0);
+
+//         // Set ambient temperature to 10 degree Celsius
+//         bme680_set_ambient_temperature(sensor, 10);
+
+//         /** -- TASK CREATION PART --- */
+
+//         // must be done last to avoid concurrency situations with the sensor
+//         // configuration part
+
+//         // Create a task that uses the sensor
+//         xTaskCreate(bme680_test, "bme680_test", TASK_STACK_DEPTH, NULL, 2, NULL);
+//     }
+//     else
+//     {
+//         printf("Could not initialize BME680 sensor\n");
+//     }
+    mqtt_app_start();
+    vTaskDelay(100);
+    }
+
     //TCS--WORKING
 // while(1){
 //     tcs();
@@ -316,74 +349,42 @@ void app_main()
     //     printf("%f,",samples_data);
     //     }
     //     }
-    const esp_mqtt_client_config_t mqtt_cfg = {
-        .host = "10.0.1.29",
-        // .uri = "mqtt://@m15.cloudmqtt.com:10793",
-        // .host = "m15.cloudmqtt.com",
-        .port = 1883,
-        // .username = "rxarkckf",
-        // .password = "gzmXEr4rAClH",
-  
-        // .event_handle = mqtt_event_handler,
-        // .user_context = (void *)your_context
-    };
+//     const esp_mqtt_client_config_t mqtt_cfg = {
+//         // .host = "10.0.1.29",
+//         // .uri = "mqtt://@m15.cloudmqtt.com:10793",
+//         .uri = "mqtt://rxarkckf:gzmXEr4rAClH@m15.cloudmqtt.com:10793",
 
-    esp_mqtt_client_handle_t client = esp_mqtt_client_init(&mqtt_cfg);
-    while(esp_mqtt_client_start(client)){
-        if (esp_mqtt_client_subscribe(client, MQTT_TOPIC, 0) == true){
-                  for (int x = 0; x <= 64; x++){
-esp_mqtt_client_publish(client, MQTT_TOPIC, (char)pixels[x], 0, 0, 0);
- }
-        for (int x = 0; x <6; x++){
-esp_mqtt_client_publish(client, MQTT_TOPIC, (char)tcs_array[x], 0, 0, 0);
- }
-            esp_mqtt_client_publish(client, MQTT_TOPIC, (char)val, 0, 0, 0);
-            esp_mqtt_client_publish(client, MQTT_TOPIC, (char)read_raw, 0, 0, 0);
-            for(int x = 0; x <5; x++){
-            esp_mqtt_client_publish(client, MQTT_TOPIC, (char)bme_sensor_value[0], 0, 0, 0);
-            esp_mqtt_client_publish(client, MQTT_TOPIC, (char)bme_sensor_value[1], 0, 0, 0);
-            esp_mqtt_client_publish(client, MQTT_TOPIC, (char)bme_sensor_value[2], 0, 0, 0);
-            esp_mqtt_client_publish(client, MQTT_TOPIC, (char)bme_sensor_value[3], 0, 0, 0);
-            }
-        }
-    }
+//         // .host = "m15.cloudmqtt.com",
+//         // .port = 1883,
+//         // .username = "rxarkckf",
+//         // .password = "gzmXEr4rAClH",
+  
+//         .event_handle = mqtt_event_handler,
+//         // .user_context = (void *)your_context
+//     };
+
+//     esp_mqtt_client_handle_t client = esp_mqtt_client_init(&mqtt_cfg);
+//     while(esp_mqtt_client_start(client)){
+//         if (esp_mqtt_client_subscribe(client, MQTT_TOPIC, 0) == true){
+//                   for (int x = 0; x <= 64; x++){
+// esp_mqtt_client_publish(client, MQTT_TOPIC, (char)pixels[x], 0, 0, 0);
+//  }
+//         for (int x = 0; x <6; x++){
+// esp_mqtt_client_publish(client, MQTT_TOPIC, (char)tcs_array[x], 0, 0, 0);
+//  }
+//             esp_mqtt_client_publish(client, MQTT_TOPIC, (char)val, 0, 0, 0);
+//             esp_mqtt_client_publish(client, MQTT_TOPIC, (char)read_raw, 0, 0, 0);
+//             for(int x = 0; x <5; x++){
+//             esp_mqtt_client_publish(client, MQTT_TOPIC, (char)bme_sensor_value[0], 0, 0, 0);
+//             esp_mqtt_client_publish(client, MQTT_TOPIC, (char)bme_sensor_value[1], 0, 0, 0);
+//             esp_mqtt_client_publish(client, MQTT_TOPIC, (char)bme_sensor_value[2], 0, 0, 0);
+//             esp_mqtt_client_publish(client, MQTT_TOPIC, (char)bme_sensor_value[3], 0, 0, 0);
+//             }
+//         }
+//     }
     
 //EVERYTHING TOGETHER HAHAHAHA
         // xTaskCreate(mqtt_event_handler,"mqtt",TASK_STACK_DEPTH, NULL, 2, NULL);
-    amg();
-    emisensor();
-    pirmotion();
-    tcs();
-if (sensor)
-    {
-        /** -- SENSOR CONFIGURATION PART (optional) --- */
-
-        // Changes the oversampling rates to 4x oversampling for temperature
-        // and 2x oversampling for humidity. Pressure measurement is skipped.
-        // bme680_set_oversampling_rates(sensor, osr_4x, osr_none, osr_2x);
-
-        // Change the IIR filter size for temperature and pressure to 7.
-        bme680_set_filter_size(sensor, iir_size_7);
-
-        // Change the heater profile 0 to 200 degree Celcius for 100 ms.
-        bme680_set_heater_profile(sensor, 0, 200, 100);
-        bme680_use_heater_profile(sensor, 0);
-
-        // Set ambient temperature to 10 degree Celsius
-        bme680_set_ambient_temperature(sensor, 10);
-
-        /** -- TASK CREATION PART --- */
-
-        // must be done last to avoid concurrency situations with the sensor
-        // configuration part
-
-        // Create a task that uses the sensor
-        xTaskCreate(bme680_test, "bme680_test", TASK_STACK_DEPTH, NULL, 2, NULL);
-    }
-    else
-    {
-        printf("Could not initialize BME680 sensor\n");
-    }
-            // mqtt_app_start();
+    
     
 }
