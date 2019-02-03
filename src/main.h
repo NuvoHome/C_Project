@@ -1,6 +1,8 @@
 #ifndef __MAIN_H__
 #define __MAIN_H__
  #include <stdio.h>
+ #include <string.h>
+
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "esp_system.h"

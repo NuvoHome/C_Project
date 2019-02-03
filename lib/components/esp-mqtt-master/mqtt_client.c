@@ -797,7 +797,7 @@ int esp_mqtt_client_subscribe(esp_mqtt_client_handle_t client, const char *topic
 {
     if (client->state != MQTT_STATE_CONNECTED) {
         ESP_LOGE(TAG, "Client has not connected");
-        return false;
+        return -1;
     }
     mqtt_enqueue(client); //move pending msg to outbox (if have)
     client->mqtt_state.outbound_message = mqtt_msg_subscribe(&client->mqtt_state.mqtt_connection,
@@ -809,11 +809,11 @@ int esp_mqtt_client_subscribe(esp_mqtt_client_handle_t client, const char *topic
 
     if (mqtt_write_data(client) != ESP_OK) {
         ESP_LOGE(TAG, "Error to subscribe topic=%s, qos=%d", topic, qos);
-        return false;
+        return -1;
     }
 
     ESP_LOGD(TAG, "Sent subscribe topic=%s, id: %d, type=%d successful", topic, client->mqtt_state.pending_msg_id, client->mqtt_state.pending_msg_type);
-    return true;
+    return client->mqtt_state.pending_msg_id;
 }
 
 int esp_mqtt_client_unsubscribe(esp_mqtt_client_handle_t client, const char *topic)
@@ -868,5 +868,3 @@ int esp_mqtt_client_publish(esp_mqtt_client_handle_t client, const char *topic, 
     }
     return pending_msg_id;
 }
-
-

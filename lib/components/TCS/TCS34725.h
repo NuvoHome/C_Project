@@ -42,7 +42,7 @@
 #include "driver/i2c.h"
 
 
-#define TCS34725_ADDRESS          (0x29)
+#define TCS34725_ADDRESS          (0x28)
 #define I2C_BUS                   (0)
 #define TCS34725_COMMAND_BIT      (0x80)
 #define DATA_LENGTH               (512) /*!<Data buffer length for test buffer*/
