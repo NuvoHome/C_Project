@@ -44,7 +44,7 @@
     "C_Cpp.intelliSenseEngineFallback": "Disabled",
     "C_Cpp.dimInactiveRegions": false,
     "terminal.integrated.env.osx": {
-        "PATH": "/Users/auggie/.platformio/penv/bin:/Users/auggie/.platformio/penv:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/Users/auggie/.platformio/penv/bin:/Users/auggie/.platformio/penv:/Users",
+        "PATH": "/Users/auggie/.platformio/penv/bin:/Users/auggie/.platformio/penv:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/Users/auggie/.platformio/penv/bin:/Users/auggie/.platformio/penv:/Users:/Applications/VMware Fusion.app/Contents/Public:/Library/Frameworks/Mono.framework/Versions/Current/Commands:/Applications/Wireshark.app/Contents/MacOS",
         "PLATFORMIO_CALLER": "vscode"
     }
 }
